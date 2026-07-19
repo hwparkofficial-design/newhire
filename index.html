@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>신규입사자 일정관리 시스템</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --navy:#1F2A4E; --navy2:#2A3866; --pink:#F4B7CE; --pink-strong:#EF9DBC;
+  --pink-light:#FADEE6; --grey:#8E9AAD; --line:#E5E8EF; --bg:#FFFFFF;
+  --text:#1A1A2E; --muted:#6B7488;
+  --tip-blue:#2563EB; --tip-sky:#DCEBFF; --tip-gray:#5B6472; --tip-gray-bg:#EDEFF3;
+  --st-none:#FBE0E0; --st-first:#FFF3C4; --st-both:#FFFFFF;
+  --radius:14px; --shadow:0 8px 30px rgba(31,42,78,.12);
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Pretendard',-apple-system,sans-serif;color:var(--text);background:#F4F6FA;font-size:14px;line-height:1.5;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;font-size:14px;}
+.upper{font-family:'Poppins',sans-serif;text-transform:uppercase;letter-spacing:.06em;}
+.hidden{display:none !important;}
+
+/* LOGIN */
+#login{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:1000;}
+.login-card{width:340px;text-align:center;color:#fff;}
+.login-card .logo{margin:0 auto 26px;}
+.login-card h1{font-size:15px;font-weight:600;margin:0 0 4px;}
+.login-card p{color:var(--pink);font-size:12px;margin:0 0 28px;}
+.login-card input{width:100%;padding:13px 15px;margin-bottom:12px;border:none;border-radius:10px;background:#2A3866;color:#fff;outline:none;}
+.login-card input::placeholder{color:#8892ad;}
+.login-card button{width:100%;padding:13px;border:none;border-radius:10px;background:var(--pink);color:var(--navy);font-weight:700;font-size:14px;}
+.login-err{color:#ff9db0;font-size:12px;height:16px;margin-bottom:8px;}
+
+/* SHELL */
+#app{display:none;min-height:100vh;}
+.layout{display:flex;min-height:100vh;}
+.sidebar{width:220px;flex-shrink:0;background:var(--navy);color:#fff;padding:22px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;}
+.sidebar .brand{display:flex;align-items:center;gap:11px;padding:0 8px 22px;}
+.sidebar .brand .t{font-size:13px;font-weight:600;line-height:1.3;}
+.sidebar nav{display:flex;flex-direction:column;gap:3px;flex:1;}
+.sidebar nav button.navi{background:transparent;border:none;color:#c3cade;padding:11px 14px;border-radius:11px;font-size:14px;font-weight:500;text-align:left;display:flex;align-items:center;gap:10px;width:100%;}
+.sidebar nav button.navi.active{background:var(--pink);color:var(--navy);font-weight:700;}
+.sidebar nav button.navi:hover:not(.active){background:#28345c;color:#fff;}
+.sidebar nav .subnav{display:flex;flex-direction:column;gap:2px;margin:2px 0 6px 12px;padding-left:10px;border-left:1px solid #38446e;}
+.sidebar nav .subnav button{background:transparent;border:none;color:#aab2c8;text-align:left;padding:8px 12px;border-radius:9px;font-size:13px;}
+.sidebar nav .subnav button.active{background:#2f3d66;color:#fff;font-weight:600;}
+.content{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar2{height:56px;display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:0 24px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40;}
+.topbar2 .bell{position:relative;background:#f0f2f7;border:none;color:var(--navy);width:36px;height:36px;border-radius:50%;font-size:16px;}
+.topbar2 .bell .dot{position:absolute;top:-3px;right:-3px;background:var(--pink-strong);color:var(--navy);font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;}
+.topbar2 .who{font-size:13px;color:var(--muted);font-weight:600;}
+.topbar2 .logout{background:#fff;border:1px solid var(--line);color:var(--muted);border-radius:16px;padding:6px 13px;font-size:12px;}
+main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
+
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:18px;gap:16px;flex-wrap:wrap;}
+.page-head .label{font-size:11px;color:var(--grey);letter-spacing:.14em;margin-bottom:6px;}
+.page-head h2{margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em;}
+.page-head .sub{color:var(--muted);font-size:13px;margin-top:6px;display:flex;align-items:center;gap:8px;}
+.count-pill{display:inline-flex;align-items:center;background:#E9ECF2;color:#1a1a2e;border-radius:20px;padding:3px 12px;font-weight:700;font-size:12px;}
+
+.btn{border:none;border-radius:22px;padding:9px 16px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;}
+.btn.primary{background:var(--navy);color:#fff;}
+.btn.pink{background:var(--pink);color:var(--navy);}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line);}
+.btn.sm{padding:6px 12px;font-size:12px;}
+.btn.danger{background:#E9536B;color:#fff;}
+.btn:hover{opacity:.92;}
+
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.seg{display:inline-flex;background:#eef1f7;border-radius:22px;padding:3px;}
+.seg button{border:none;background:transparent;padding:7px 16px;border-radius:20px;font-size:13px;font-weight:600;color:var(--muted);}
+.seg button.active{background:#fff;color:var(--navy);box-shadow:0 1px 4px rgba(0,0,0,.08);}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+
+/* FILTERS */
+.filters{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:12px 15px;margin-bottom:14px;}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.filter-row+.filter-row{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);}
+.filters input,.filters select{padding:9px 12px;border:1px solid var(--line);border-radius:20px;background:#fff;outline:none;}
+.filters input:focus,.filters select:focus{border-color:var(--pink-strong);}
+.filters .flabel{font-size:12px;font-weight:700;color:var(--muted);padding:0 2px;}
+.combo{position:relative;}
+.combo>input{width:150px;}
+.combo-list{position:absolute;top:calc(100% + 4px);left:0;min-width:190px;max-height:200px;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:60;padding:5px;}
+.combo-list .ci{padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:0.5px solid var(--line);}
+.combo-list .ci:last-child{border-bottom:none;}
+.combo-list .ci:hover{background:var(--pink-light);border-radius:8px;}
+.combo-list .none{padding:8px 12px;color:var(--muted);font-size:12px;}
+.date-parts{display:flex;gap:6px;align-items:center;}
+.date-parts select{border-radius:16px;padding:8px 10px;}
+.cal-btn{border:1px solid var(--line);background:#fff;border-radius:16px;padding:8px 11px;font-size:14px;}
+.date-hidden{position:absolute;width:1px;height:1px;opacity:0;padding:0;border:0;pointer-events:none;}
+.xfilter{display:flex;gap:6px;align-items:center;background:#f7f8fc;border:1px solid var(--line);border-radius:20px;padding:3px 3px 3px 4px;}
+.xfilter select,.xfilter input{border:none;background:transparent;padding:6px 8px;}
+.xfilter .rmx{border:none;background:#e6e9f1;color:var(--muted);width:22px;height:22px;border-radius:50%;font-size:13px;}
+
+/* SPREADSHEET */
+.sheet{width:100%;border-collapse:collapse;}
+.sheet th{background:#fafbfd;text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:12px 14px;border-bottom:1px solid var(--line);}
+.sheet td{padding:12px 14px;border-bottom:1px solid #eef1f6;font-size:13px;}
+.sheet tr.person{cursor:pointer;}
+.sheet tr.person:hover td{background:rgba(244,183,206,.14) !important;}
+.sheet tr.st-none td{background:var(--st-none);}
+.sheet tr.st-first td{background:var(--st-first);}
+.sheet tr.st-both td{background:var(--st-both);}
+.sheet tr.group td{background:var(--navy);color:#fff;font-weight:700;font-size:13px;padding:9px 14px;}
+.sheet tr.group .cnt{color:var(--pink);font-weight:600;margin-left:8px;font-size:12px;}
+.name-cell{font-weight:700;}
+.mini-checks{display:inline-flex;gap:5px;margin-left:8px;vertical-align:middle;}
+.mini-checks span{font-size:10px;padding:2px 6px;border-radius:10px;border:1px solid var(--line);color:var(--muted);cursor:pointer;}
+.mini-checks span:hover{border-color:var(--navy);}
+.mini-checks span.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.empty{padding:60px 20px;text-align:center;color:var(--muted);}
+.empty .big{font-size:32px;margin-bottom:10px;}
+
+/* CALENDAR */
+.cal-head{display:flex;align-items:center;gap:14px;margin-bottom:14px;}
+.cal-head h3{margin:0;font-size:18px;font-weight:700;min-width:150px;text-align:center;}
+.cal-head button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:15px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;gap:1px;}
+.cal-dow{background:#fafbfd;text-align:center;padding:9px 0;font-size:12px;font-weight:600;color:var(--muted);}
+.cal-cell{background:#fff;min-height:118px;padding:6px;position:relative;}
+.cal-cell.other{background:#fafbfc;}
+.cal-cell .dnum{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:4px;display:inline-block;}
+.cal-cell.today .dnum{background:var(--navy);color:#fff;border-radius:50%;width:22px;height:22px;text-align:center;line-height:22px;}
+.cal-cell .add-day{position:absolute;top:5px;right:5px;opacity:0;border:none;background:var(--pink);color:var(--navy);width:20px;height:20px;border-radius:50%;font-size:13px;font-weight:700;padding:0;line-height:1;display:flex;align-items:center;justify-content:center;}
+.cal-cell:hover .add-day{opacity:1;}
+.cal-box{border-radius:8px;padding:4px 7px;margin-bottom:4px;cursor:pointer;border:1px solid rgba(0,0,0,.05);}
+.cal-box.st-none{background:var(--st-none);}
+.cal-box.st-first{background:var(--st-first);}
+.cal-box.st-both{background:var(--st-both);border-color:var(--line);}
+.cal-box .bname{font-size:12px;font-weight:700;line-height:1.3;}
+.cal-box .bdept{font-size:10px;color:var(--muted);line-height:1.2;}
+.cal-box .bchecks{display:flex;gap:5px;margin-top:3px;}
+.cal-box .bchecks label{font-size:9px;display:flex;align-items:center;gap:2px;color:var(--muted);cursor:pointer;}
+.cal-box .bchecks input{width:11px;height:11px;margin:0;accent-color:var(--navy);}
+.cal-more{font-size:11px;color:var(--navy);font-weight:600;cursor:pointer;padding:2px 4px;}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(20,26,50,.45);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:200;overflow:auto;}
+.modal{background:#fff;border-radius:18px;width:100%;max-width:640px;box-shadow:var(--shadow);overflow:hidden;}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.modal-head h3{margin:0;font-size:17px;font-weight:700;}
+.modal-head .x{border:none;background:#f0f2f7;width:30px;height:30px;border-radius:50%;font-size:16px;}
+.modal-body{padding:20px 22px;max-height:70vh;overflow:auto;}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;}
+
+/* record sections (unified view/edit) */
+.rsec{margin-bottom:16px;}
+.rsec-head{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.rsec-head .ic{font-size:15px;}
+.rsec-head .rt{font-size:14px;font-weight:700;color:#E0508A;white-space:nowrap;letter-spacing:.01em;}
+.rsec-head .rline{flex:1;height:1px;background:var(--line);}
+.rsec-body{padding-left:8px;}
+.email-link{color:#185FA5;text-decoration:none;}
+.email-link:hover{text-decoration:underline;}
+.pal-btn{border:none;background:transparent;font-size:13px;opacity:.3;margin-left:6px;padding:0 2px;vertical-align:middle;}
+.drow:hover .pal-btn{opacity:.75;}
+.pal{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:7px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 9px;}
+.pal .pl{font-size:11px;color:var(--muted);}
+.pal .sw{width:20px;height:20px;border-radius:6px;border:1px solid rgba(0,0,0,.12);font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;padding:0;}
+.pal .sw.clear{background:#f0f2f7;color:var(--muted);}
+.field-menu-wrap{margin-left:auto;display:inline-flex;align-items:center;gap:4px;}
+.field .dots{opacity:0;border:none;background:transparent;color:var(--muted);font-size:16px;cursor:pointer;padding:0 4px;line-height:1;}
+.field:hover .dots{opacity:.6;}
+.field .dots:hover{opacity:1;}
+.fdot{width:9px;height:9px;border-radius:50%;display:none;border:1px solid rgba(0,0,0,.18);}
+.fmenu{position:absolute;right:0;top:24px;z-index:6;display:flex;align-items:center;gap:5px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 9px;box-shadow:var(--shadow);width:max-content;max-width:290px;}
+.fmenu .pl{font-size:11px;color:var(--muted);}
+.fmenu .sw{width:20px;height:20px;border-radius:6px;border:1px solid rgba(0,0,0,.12);font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;padding:0;}
+.fmenu .sw.clear{background:#f0f2f7;color:var(--muted);}
+.drow{display:flex;padding:8px 2px;border-bottom:1px dashed #eef1f6;font-size:13px;}
+.drow:last-child{border-bottom:none;}
+.drow .k{width:130px;color:#9AA1B0;flex-shrink:0;}
+.drow .v{flex:1;word-break:break-word;white-space:pre-line;color:var(--navy);font-weight:500;position:relative;}
+.mask{cursor:pointer;color:var(--navy);font-weight:600;background:#eef1f7;padding:1px 8px;border-radius:8px;font-size:12px;}
+.badge{display:inline-block;padding:2px 9px;border-radius:11px;font-size:11px;font-weight:600;}
+.badge.gray{background:#eef1f6;color:var(--muted);}
+.badge.pink{background:var(--pink-light);color:#b0466a;}
+.badge.navy{background:var(--navy);color:#fff;}
+
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;position:relative;}
+.field:last-child{margin-bottom:0;}
+.field label{font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;}
+.field label .req{color:var(--pink-strong);}
+.field input,.field select,.field textarea{padding:9px 11px;border:1px solid var(--line);border-radius:9px;outline:none;background:#fff;width:100%;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--pink-strong);}
+.field textarea{resize:none;overflow:hidden;min-height:42px;}
+.salary-wrap{display:flex;gap:6px;align-items:center;}
+.salary-wrap input{flex:1;}
+.salary-wrap .unit{color:var(--grey);font-size:12px;white-space:nowrap;}
+.tip-btn{border:none;font-size:10px;font-weight:700;padding:3px 8px;border-radius:11px;letter-spacing:.03em;background:var(--tip-gray-bg);color:var(--tip-gray);}
+.tip-btn.has{background:var(--tip-sky);color:var(--tip-blue);}
+.tip-box{background:#f4f9ff;border:1px solid var(--tip-sky);border-radius:9px;padding:10px 12px;font-size:12px;color:#3a4a63;line-height:1.55;}
+.tip-box .tip-text{white-space:pre-line;}
+.tip-box .tip-actions{margin-top:8px;display:flex;gap:6px;}
+.tip-box .mini{border:none;font-size:11px;font-weight:700;padding:4px 10px;border-radius:9px;}
+.tip-box .mini.edit{background:var(--tip-sky);color:var(--tip-blue);}
+.tip-box .mini.save{background:var(--navy);color:#fff;}
+.tip-box .mini.cancel{background:#eef1f6;color:var(--muted);}
+.tip-box textarea{width:100%;border:1px solid var(--tip-sky);border-radius:8px;padding:8px;font-size:12px;min-height:80px;resize:vertical;}
+.chip-group{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:7px 14px;font-size:12.5px;font-weight:600;color:var(--muted);}
+.chip.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.chk{display:flex;gap:16px;align-items:center;padding:2px 0;}
+.chk label{display:flex;align-items:center;gap:7px;font-weight:600;cursor:pointer;}
+.chk input{width:16px;height:16px;accent-color:var(--navy);}
+
+/* list (email/dept) */
+.list-row{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #eef1f6;background:#fff;}
+.list-row:last-child{border-bottom:none;}
+.list-row .grow{flex:1;}
+.list-row .lname{font-weight:700;}
+.list-row .lsub{color:var(--muted);font-size:12px;}
+.list-row.drag{cursor:grab;}
+.list-row.dragging{opacity:.4;}
+.list-row .handle{color:#c2c8d6;font-size:16px;cursor:grab;user-select:none;}
+.dept-group-head{background:var(--navy);color:#fff;font-weight:700;font-size:12px;padding:8px 16px;}
+.dept-group-head .c{color:var(--pink);margin-left:8px;font-size:11px;}
+.inline-add{display:flex;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap;background:#fafbfd;}
+.inline-add input{padding:9px 12px;border:1px solid var(--line);border-radius:9px;flex:1;min-width:120px;}
+
+/* notifications */
+.folder-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.fchip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:7px 14px;font-size:12.5px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:6px;}
+.fchip.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+.fchip .del{border:none;background:transparent;color:inherit;opacity:.6;font-size:12px;padding:0;}
+.log-row{display:flex;gap:12px;padding:13px 16px;border-bottom:1px solid #eef1f6;align-items:flex-start;}
+.log-row .ic{width:34px;height:34px;border-radius:50%;background:var(--pink-light);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.log-row .ic.add{background:#d9f2e4;} .log-row .ic.edit{background:#fdefc7;} .log-row .ic.del{background:#f8d6dc;} .log-row .ic.login{background:#dbe4fb;}
+.log-row .lmain{flex:1;font-size:13px;}
+.log-row .lmain b{font-weight:700;}
+.log-row .ltime{color:var(--muted);font-size:11px;white-space:nowrap;}
+.log-row .ldetail{color:var(--muted);font-size:12px;margin-top:2px;}
+.log-row .movesel{border:1px solid var(--line);border-radius:14px;font-size:11px;padding:4px 8px;color:var(--muted);background:#fff;}
+
+/* stats */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px;}
+.stat-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:18px;}
+.stat-card .n{font-size:30px;font-weight:800;font-family:'Poppins',sans-serif;color:var(--navy);}
+.stat-card .t{color:var(--muted);font-size:12px;margin-top:4px;}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.bar-row .bl{width:130px;font-size:12.5px;font-weight:600;text-align:right;color:var(--text);flex-shrink:0;}
+.bar-track{flex:1;background:#eef1f6;border-radius:8px;height:20px;overflow:hidden;}
+.bar-fill{height:100%;background:var(--pink-strong);border-radius:8px;}
+.bar-row .bv{font-size:12px;color:var(--muted);width:34px;}
+
+/* settings */
+.set-block{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:6px 20px;margin-bottom:16px;}
+.set-item{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid #eef1f6;gap:12px;}
+.set-item:last-child{border-bottom:none;}
+.set-item .st-t{font-weight:600;} .set-item .st-d{color:var(--muted);font-size:12px;margin-top:2px;}
+.switch{position:relative;width:46px;height:26px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;background:#cfd5e2;border-radius:26px;transition:.2s;}
+.slider:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+.switch input:checked+.slider{background:var(--navy);}
+.switch input:checked+.slider:before{transform:translateX(20px);}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 22px;border-radius:24px;font-size:13px;z-index:500;box-shadow:var(--shadow);opacity:0;transition:.3s;pointer-events:none;}
+.toast.show{opacity:1;}
+@media(max-width:760px){.sidebar{width:66px;}.sidebar .brand .t,.sidebar nav button.navi span.lbl{display:none;}}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-card">
+    <div class="logo" id="loginLogo"></div>
+    <h1>신규입사자 일정관리 시스템</h1>
+    <p class="upper">SM Entertainment 인사 Unit</p>
+    <input type="password" id="pw" placeholder="비밀번호" />
+    <input type="text" id="editorName" placeholder="담당자 이름 (예: 홍길동)" />
+    <div class="login-err" id="loginErr"></div>
+    <button onclick="doLogin()">접속하기</button>
+  </div>
+</div>
+
+<div id="app">
+ <div class="layout">
+  <aside class="sidebar">
+    <div class="brand"><span id="sideLogo"></span><span class="t">신규입사자<br>일정관리 시스템</span></div>
+    <nav id="nav"></nav>
+  </aside>
+  <div class="content">
+    <div class="topbar2">
+      <button class="bell" onclick="go('alarm')">🔔<span class="dot hidden" id="bellDot">0</span></button>
+      <span class="who" id="whoName"></span>
+      <button class="logout" onclick="logout()">로그아웃</button>
+    </div>
+    <main id="view"></main>
+  </div>
+ </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== LOGO (SM Entertainment · actual mark) ===== */
+const LOGO_W="data:image/png;base64,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";
+const LOGO_B="data:image/png;base64,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";
+document.getElementById('loginLogo').innerHTML='<img src="'+LOGO_W+'" style="height:74px" alt="SM">';
+document.getElementById('sideLogo').innerHTML='<img src="'+LOGO_W+'" style="height:34px" alt="SM">';
+
+/* ===== STATE ===== */
+const PW='1995';
+const LS_KEY='sm_newhire_app_v3';
+let state={people:[],departments:[],contacts:[],logs:[],logFolders:[],tips:{},settings:{deleteConfirm:true,dupDetect:true,maskSensitive:true}};
+let session={name:null};
+let curTab='home', infoSub='email', homeMode='sheet';
+let calRef=new Date();
+let search={q:'',dept:'',type:'',jY:'',jM:'',jD:'',jDate:'',extra:[]};
+let alarmFolder='all';
+let curRecord=null;
+
+function load(){try{const d=JSON.parse(localStorage.getItem(LS_KEY));if(d){state=Object.assign(state,d);state.settings=Object.assign({deleteConfirm:true,dupDetect:true,maskSensitive:true},d.settings||{});state.tips=d.tips||{};state.logFolders=d.logFolders||[];}}catch(e){}}
+function save(){localStorage.setItem(LS_KEY,JSON.stringify(state));}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+const COUNTRIES=['대한민국','미국','중국','일본','대만','홍콩','캐나다','영국','프랑스','독일','이탈리아','스페인','네덜란드','스위스','스웨덴','노르웨이','핀란드','덴마크','러시아','우크라이나','폴란드','오스트리아','벨기에','아일랜드','포르투갈','그리스','체코','헝가리','튀르키예','호주','뉴질랜드','인도','인도네시아','태국','베트남','필리핀','말레이시아','싱가포르','미얀마','캄보디아','몽골','네팔','파키스탄','방글라데시','스리랑카','우즈베키스탄','카자흐스탄','사우디아라비아','아랍에미리트','이스라엘','이집트','남아프리카공화국','나이지리아','케냐','모로코','브라질','아르헨티나','칠레','멕시코','콜롬비아','페루','기타'];
+
+/* ===== FIELD REGISTRY (shared view/edit) ===== */
+const FIELDS={
+ name:{label:'이름',type:'text',req:1},
+ joinDate:{label:'입사일',type:'date',req:1},
+ dept:{label:'부서',type:'dept'},
+ rank:{label:'직급/직책',type:'text'},
+ joinType:{label:'입사구분',type:'chips',options:['경력','신입(수습급여 90% 적용 제외)','신입'],badge:'pink'},
+ empStatus:{label:'정규직 여부',type:'chips',options:['정규직','계약직'],badge:'navy'},
+ nationality:{label:'국적',type:'select',options:COUNTRIES},
+ handover:{label:'인계자',type:'contact'},
+ handoverEmail:{label:'인계자 이메일',type:'text'},
+ orgLead:{label:'조직장',type:'contact'},
+ orgLeadEmail:{label:'조직장 이메일',type:'text'},
+ note:{label:'비고',type:'area'},
+ payType:{label:'급여유형',type:'pay',options:['연봉제','월급제'],badge:'gray'},
+ salary:{label:'연봉',type:'salary',sensitive:1},
+ extraSalary:{label:'계약 외 연봉',type:'salary',sensitive:1},
+ healthDependent:{label:'건강보험 피부양자',type:'area'},
+ bank:{label:'은행',type:'text'},
+ account:{label:'계좌번호',type:'text',sensitive:1},
+ accountHolder:{label:'예금주',type:'text'},
+ marriage:{label:'혼인 여부',type:'chips',options:['O','X'],badge:'gray'},
+ children:{label:'자녀 유무',type:'chips',options:['O','X'],badge:'gray'},
+ education:{label:'최종학력',type:'text'},
+ school:{label:'학교/전공',type:'area'},
+ career:{label:'경력사항',type:'area'},
+ internalMemo:{label:'내부관리용 메모',type:'area'}
+};
+const SECTIONS=[
+ {t:'기본 정보',icon:'👤',f:['name','joinDate','dept','rank','joinType','empStatus','nationality']},
+ {t:'조직 · 인계',icon:'🤝',f:['handover','handoverEmail','orgLead','orgLeadEmail','note']},
+ {t:'급여',icon:'💰',f:['payType','salary','extraSalary']},
+ {t:'개인 · 온보딩',icon:'🏦',f:['healthDependent','bank','account','accountHolder','marriage','children']},
+ {t:'학력 · 경력',icon:'🎓',f:['education','school','career']},
+ {t:'내부관리용 메모',icon:'🗒️',f:['internalMemo']},
+ {t:'입력 상태',icon:'✅',f:['__status']}
+];
+const TIP_DEFAULT={
+ name:"기본적으로 알파벳 표기 X\n동명이인이 있을 경우 알파벳까지 표기",
+ joinDate:"신규입사자 실제 입사일 기준으로 기재",
+ dept:"입력하면 부서 명부에 자동 저장되어 다음부터 드롭다운으로 선택 가능",
+ rank:"파견직 → '담당'\n인턴 → '인턴'\n파트타이머 → 'P/T'\n직급+직책 → '수석 / 유닛장' 형태로 기재",
+ joinType:"[경력] 인정경력 有\n[신입(수습급여 90% 적용 제외)] 미인정경력 有 (채용기안 확인)\n[신입] 경력 없음, 또는 미인정경력 있으나 직무 무관한 경우",
+ empStatus:"정규직 → 정규직\n인턴·계약직·파견직 → 계약직",
+ orgLead:"카카오워크 및 조직도 활용하여 유닛장·파트장·리더 등 상위직급자 확인",
+ handoverEmail:"입력 시 E-Mail 명부에 자동 저장",
+ orgLeadEmail:"입력 시 E-Mail 명부에 자동 저장",
+ note:"· 파견직인 경우: '파견직' 기재\n· 상세 직무 기재\n· Creative 센터: 직무(소속) [예] Creative Visual\n· Merch 기획 Unit [예] 기획 2파트\n· 결산 PI Unit [예] 매니지먼트 Part",
+ salary:"연봉제: 00,000,000원\n월급제: 0,000,000원/月",
+ extraSalary:"있는 경우 기재 (채용 기안 확인)",
+ healthDependent:"제출한 온보딩 정보 확인\n있을 경우: 000(부) / 000000-0000000",
+ bank:"통장사본으로 더블체크 必",
+ account:"통장사본으로 더블체크 必",
+ accountHolder:"통장사본으로 더블체크 必",
+ education:"채용 기안 확인\n고졸 / 전문대졸 / 대졸 / 대학원졸 / 대졸예정 등\n※ 대학 재학중일 경우 '대졸예정'",
+ school:"채용 기안 확인 · '00대 / 00학' 형태\n[예] 한국외대 / 경영학\n[예] 중앙대 / 공공인재학부\n[예] 서울시립대(석사) / 법학전문대학원",
+ career:"채용 기안 확인 (기업명만 기재_부서·직급 X, 회색 글씨 X)\n신입: 'SM엔터테인먼트    2026.07 ~ 현재'\n경력: '회사명    입사월 ~ 퇴사월' (재직중이면 SM입사월)\n[예] 하이브    2024.09 ~ 2026.07",
+ internalMemo:"인사특이사항 기재\n· 고용형태 전환된 경우 (예: 인턴 → 정규직)\n· 인턴 계약기간: 추정 계약기간(3개월 이하/6개월 이하/6개월 초과) ← 채용기안 확인"
+};
+function getTip(k){return (state.tips&&state.tips[k]!==undefined)?state.tips[k]:(TIP_DEFAULT[k]||'');}
+
+/* ===== HELPERS ===== */
+function statusClass(p){if(p.firstDone&&p.secondDone)return'st-both';if(p.firstDone)return'st-first';return'st-none';}
+function esc(s){return(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2200);}
+function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function relTime(ts){const s=(Date.now()-ts)/1000;if(s<60)return'방금 전';if(s<3600)return Math.floor(s/60)+'분 전';if(s<86400)return Math.floor(s/3600)+'시간 전';return Math.floor(s/86400)+'일 전';}
+function payUnit(p){return p.payType==='월급제'?'원/月':(p.payType==='연봉제'?'원':'');}
+function fmtSalary(v,p){if(!v)return'';const u=payUnit(p);return v+(u?' '+u:'');}
+function fmtDateK(d){if(d==='미정')return'입사일 미정';const dt=new Date(d+'T00:00');const wd=['일','월','화','수','목','금','토'][dt.getDay()];return `${d} (${wd})`;}
+function autoGrow(el){el.style.height='auto';el.style.height=(el.scrollHeight+2)+'px';}
+function sizeTextareas(){document.querySelectorAll('.modal textarea.grow-ta').forEach(autoGrow);}
+
+function log(action,target,detail){state.logs.unshift({id:uid(),ts:Date.now(),editor:session.name||'-',action,target:target||'',detail:detail||'',folderId:null});if(state.logs.length>800)state.logs.pop();}
+function diffPerson(o,n){const c=[];for(const k in FIELDS){if((o[k]||'')!==(n[k]||''))c.push(FIELDS[k].label);}['firstDone','secondDone'].forEach(k=>{if((o[k]||false)!==(n[k]||false))c.push(k==='firstDone'?'1차입력':'2차입력');});return c;}
+
+/* ===== LOGIN ===== */
+function doLogin(){const pw=document.getElementById('pw').value;const nm=document.getElementById('editorName').value.trim();const err=document.getElementById('loginErr');
+ if(pw!==PW){err.textContent='비밀번호가 올바르지 않습니다.';return;}
+ if(!nm){err.textContent='담당자 이름을 입력해주세요.';return;}
+ session.name=nm;document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';
+ document.getElementById('whoName').textContent=nm+' 님';
+ log('login','','접속');save();renderNav();go('home');}
+function logout(){session.name=null;document.getElementById('app').style.display='none';document.getElementById('login').style.display='flex';document.getElementById('pw').value='';document.getElementById('loginErr').textContent='';}
+document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('editorName').focus();});
+document.getElementById('editorName').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+/* ===== NAV ===== */
+function renderNav(){
+ const items=[['home','🏠','Home'],['info','🗂️','Directory'],['alarm','🔔','Activity'],['stats','📊','Insights'],['settings','⚙️','Settings']];
+ let html='';
+ items.forEach(([id,ic,label])=>{
+  html+=`<button class="navi ${curTab===id?'active':''}" onclick="go('${id}')"><span>${ic}</span><span class="lbl">${label}</span></button>`;
+  if(id==='info'&&curTab==='info'){html+=`<div class="subnav">
+    <button class="${infoSub==='email'?'active':''}" onclick="setInfo('email')">✉️ E-Mail</button>
+    <button class="${infoSub==='dept'?'active':''}" onclick="setInfo('dept')">🏢 Departments</button></div>`;}
+ });
+ document.getElementById('nav').innerHTML=html;
+ const dot=document.getElementById('bellDot');if(state.logs.length>0){dot.classList.remove('hidden');dot.textContent=state.logs.length>99?'99+':state.logs.length;}else dot.classList.add('hidden');
+}
+function go(tab){curTab=tab;if(tab==='info'){renderNav();return renderInfo();}renderNav();const v=document.getElementById('view');
+ if(tab==='home')renderHome(v);else if(tab==='alarm')renderAlarm(v);else if(tab==='stats')renderStats(v);else if(tab==='settings')renderSettings(v);
+ window.scrollTo(0,0);}
+function setInfo(s){infoSub=s;renderNav();renderInfo();}
+
+/* ===== HOME ===== */
+function renderHome(v){
+ v.innerHTML=`<div class="page-head">
+   <div><div class="label upper">Home</div><h2>신규입사자 관리</h2>
+     <div class="sub">입사일 기준으로 관리됩니다 <span class="count-pill" id="countPill">${filteredPeople().length}명</span></div></div>
+   <div class="toolbar">
+     <div class="seg"><button class="${homeMode==='sheet'?'active':''}" onclick="setMode('sheet')">스프레드시트</button><button class="${homeMode==='cal'?'active':''}" onclick="setMode('cal')">달력</button></div>
+     <button class="btn ghost" onclick="openExport()">🖨 내보내기</button>
+     <button class="btn pink" onclick="openForm()">＋ Add</button>
+   </div></div>
+   <div id="filterWrap"></div><div id="homeBody"></div>`;
+ renderFilters();
+ if(homeMode==='sheet')renderSheet();else renderCalendar();
+}
+function setMode(m){homeMode=m;renderHome(document.getElementById('view'));}
+
+/* filters (built once; inputs update results only) */
+function renderFilters(){
+ const XLABELS={rank:'직급/직책',handover:'인계자',orgLead:'조직장',empStatus:'정규직여부',nationality:'국적',note:'비고',education:'최종학력',internalMemo:'내부관리메모',status:'입력상태'};
+ const years=[...new Set(state.people.map(p=>(p.joinDate||'').slice(0,4)).filter(Boolean))].sort().reverse();
+ const xval=(f,i)=>{
+   if(f.field==='empStatus')return `<select onchange="setXVal(${i},this.value)"><option value="">선택</option>${['정규직','계약직'].map(o=>`<option ${f.value===o?'selected':''}>${o}</option>`).join('')}</select>`;
+   if(f.field==='status')return `<select onchange="setXVal(${i},this.value)"><option value="">선택</option>${['1차 입력','2차 입력','1·2차 완료','미입력'].map(o=>`<option ${f.value===o?'selected':''}>${o}</option>`).join('')}</select>`;
+   return `<input placeholder="값 입력" value="${esc(f.value)}" oninput="setXVal(${i},this.value)">`;
+ };
+ let xrows=search.extra.map((f,i)=>`<div class="xfilter">
+   <select onchange="setXField(${i},this.value)">${Object.entries(XLABELS).map(([k,l])=>`<option value="${k}" ${f.field===k?'selected':''}>${l}</option>`).join('')}</select>
+   ${xval(f,i)}
+   <button class="rmx" onclick="rmXFilter(${i})">×</button></div>`).join('');
+ document.getElementById('filterWrap').innerHTML=`<div class="filters">
+   <div class="filter-row">
+     <input placeholder="🔍 이름 검색" value="${esc(search.q)}" oninput="onFilterInput('q',this.value)" style="width:160px">
+     <div class="combo"><input id="flt_dept" placeholder="부서" value="${esc(search.dept)}" autocomplete="off" oninput="onComboInput('dept',this.value)" onfocus="openCombo('dept')"><div class="combo-list hidden" id="cl_dept"></div></div>
+     <div class="combo"><input id="flt_type" placeholder="입사구분" value="${esc(search.type)}" autocomplete="off" oninput="onComboInput('type',this.value)" onfocus="openCombo('type')"><div class="combo-list hidden" id="cl_type"></div></div>
+     <span class="flabel">입사일</span>
+     <div class="date-parts">
+       <select id="sel_jY" onchange="onPartFilter('Y',this.value)"><option value="">연도</option>${years.map(y=>`<option ${search.jY===y?'selected':''}>${y}</option>`).join('')}</select>
+       <select id="sel_jM" onchange="onPartFilter('M',this.value)"><option value="">월</option>${Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')).map(m=>`<option ${search.jM===m?'selected':''}>${m}</option>`).join('')}</select>
+       <select id="sel_jD" onchange="onPartFilter('D',this.value)"><option value="">일</option>${Array.from({length:31},(_,i)=>String(i+1).padStart(2,'0')).map(d=>`<option ${search.jD===d?'selected':''}>${d}</option>`).join('')}</select>
+       <button class="cal-btn" title="달력에서 날짜 선택" onclick="openDateFilter()">📅</button>
+       <input type="date" id="flt_date" class="date-hidden" value="${search.jDate}" onchange="onDateFilter(this.value)">
+     </div>
+     <button class="btn ghost sm" onclick="addXFilter()">＋ 필터</button>
+     <button class="btn ghost sm" onclick="resetFilters()">초기화</button>
+   </div>
+   ${xrows?`<div class="filter-row">${xrows}</div>`:''}
+ </div>`;
+}
+function onFilterInput(key,val){search[key]=val;updateResults();}
+function onPartFilter(part,val){search['j'+part]=val;search.jDate='';const di=document.getElementById('flt_date');if(di)di.value='';updateResults();}
+function onDateFilter(val){search.jDate=val;search.jY=search.jM=search.jD='';['jY','jM','jD'].forEach(p=>{const s=document.getElementById('sel_'+p);if(s)s.value='';});updateResults();}
+function openDateFilter(){const el=document.getElementById('flt_date');if(el.showPicker){try{el.showPicker();return;}catch(e){}}el.classList.remove('date-hidden');el.style.opacity=1;el.focus();}
+function addXFilter(){search.extra.push({field:'rank',value:''});renderFilters();}
+function rmXFilter(i){search.extra.splice(i,1);renderFilters();updateResults();}
+function setXField(i,v){search.extra[i].field=v;search.extra[i].value='';renderFilters();updateResults();}
+function setXVal(i,v){search.extra[i].value=v;updateResults();}
+function resetFilters(){search={q:'',dept:'',type:'',jY:'',jM:'',jD:'',jDate:'',extra:[]};renderFilters();updateResults();}
+function updateResults(){const c=document.getElementById('countPill');if(c)c.textContent=filteredPeople().length+'명';if(homeMode==='sheet')renderSheet();else renderCalendar();}
+
+/* combobox */
+function comboSource(kind){return kind==='dept'?[...new Set([...state.departments,...state.people.map(p=>p.dept).filter(Boolean)])]:['경력','신입(수습급여 90% 적용 제외)','신입'];}
+function openCombo(kind){renderComboList(kind);document.getElementById('cl_'+kind).classList.remove('hidden');}
+function renderComboList(kind){const val=(kind==='dept'?search.dept:search.type).toLowerCase();
+ const opts=comboSource(kind).filter(o=>o.toLowerCase().includes(val));
+ const el=document.getElementById('cl_'+kind);if(!el)return;
+ el.innerHTML=(opts.length?opts.map(o=>`<div class="ci" onmousedown="pickCombo('${kind}','${esc(o).replace(/'/g,"\\'")}')">${esc(o)}</div>`).join(''):'<div class="none">일치 항목 없음 · 직접 입력됩니다</div>');}
+function onComboInput(kind,val){if(kind==='dept')search.dept=val;else search.type=val;renderComboList(kind);document.getElementById('cl_'+kind).classList.remove('hidden');updateResults();}
+function pickCombo(kind,val){if(kind==='dept')search.dept=val;else search.type=val;const inp=document.getElementById('flt_'+kind);if(inp)inp.value=val;document.getElementById('cl_'+kind).classList.add('hidden');updateResults();}
+document.addEventListener('mousedown',e=>{if(!e.target.closest('.combo'))document.querySelectorAll('.combo-list').forEach(l=>l.classList.add('hidden'));if(!e.target.closest('.field-menu-wrap')&&!e.target.closest('.fmenu'))document.querySelectorAll('.fmenu').forEach(m=>m.classList.add('hidden'));});
+
+function filteredPeople(){let arr=state.people.slice();
+ if(search.q){const q=search.q.toLowerCase();arr=arr.filter(p=>(p.name||'').toLowerCase().includes(q));}
+ if(search.dept){const d=search.dept.toLowerCase();arr=arr.filter(p=>(p.dept||'').toLowerCase().includes(d));}
+ if(search.type){const t=search.type.toLowerCase();arr=arr.filter(p=>(p.joinType||'').toLowerCase().includes(t));}
+ if(search.jDate){arr=arr.filter(p=>p.joinDate===search.jDate);}
+ else{if(search.jY)arr=arr.filter(p=>(p.joinDate||'').slice(0,4)===search.jY);if(search.jM)arr=arr.filter(p=>(p.joinDate||'').slice(5,7)===search.jM);if(search.jD)arr=arr.filter(p=>(p.joinDate||'').slice(8,10)===search.jD);}
+ search.extra.forEach(f=>{if(f.field==='status'){
+    if(f.value==='1·2차 완료')arr=arr.filter(p=>p.firstDone&&p.secondDone);
+    else if(f.value==='1차 입력')arr=arr.filter(p=>p.firstDone);
+    else if(f.value==='2차 입력')arr=arr.filter(p=>p.secondDone);
+    else if(f.value==='미입력')arr=arr.filter(p=>!p.firstDone&&!p.secondDone);
+  }else if(f.value){const v=f.value.toLowerCase();arr=arr.filter(p=>(p[f.field]||'').toLowerCase().includes(v));}});
+ return arr;}
+
+function renderSheet(){
+ const arr=filteredPeople().sort((a,b)=>(b.joinDate||'').localeCompare(a.joinDate||''));
+ const body=document.getElementById('homeBody');
+ if(!state.people.length){body.innerHTML=`<div class="card"><div class="empty"><div class="big">🗂️</div>아직 등록된 신규입사자가 없습니다.<br>우측 상단 <b>＋ Add</b>로 추가해보세요.</div></div>`;return;}
+ const groups={};arr.forEach(p=>{const d=p.joinDate||'미정';(groups[d]=groups[d]||[]).push(p);});
+ const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+ let rows='';
+ dates.forEach(d=>{rows+=`<tr class="group"><td colspan="7">${fmtDateK(d)}<span class="cnt">${groups[d].length}명</span></td></tr>`;
+  groups[d].forEach(p=>{rows+=`<tr class="person ${statusClass(p)}" onclick="openDetail('${p.id}')">
+   <td class="name-cell">${esc(p.name)}<span class="mini-checks"><span class="${p.firstDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','firstDone',${p.firstDone?'false':'true'})">1차</span><span class="${p.secondDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','secondDone',${p.secondDone?'false':'true'})">2차</span></span></td>
+   <td>${esc(p.joinDate||'')}</td><td>${esc(p.dept||'')}</td><td>${esc(p.rank||'')}</td>
+   <td>${esc(p.handover||'')}</td><td>${esc(p.orgLead||'')}</td><td>${esc(p.note||'')}</td></tr>`;});});
+ body.innerHTML=`<div class="card"><table class="sheet"><thead><tr><th>이름</th><th>입사일</th><th>부서</th><th>직급/직책</th><th>인계자</th><th>조직장</th><th>비고</th></tr></thead><tbody>${rows||`<tr><td colspan=7><div class="empty">검색 결과가 없습니다.</div></td></tr>`}</tbody></table></div>`;
+}
+
+/* CALENDAR */
+function renderCalendar(){
+ const body=document.getElementById('homeBody');
+ const y=calRef.getFullYear(),m=calRef.getMonth();
+ const first=new Date(y,m,1),start=new Date(first);start.setDate(1-first.getDay());
+ const byDate={};filteredPeople().forEach(p=>{if(p.joinDate)(byDate[p.joinDate]=byDate[p.joinDate]||[]).push(p);});
+ const today=ymd(new Date());let cells='';
+ for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const ds=ymd(d);const other=d.getMonth()!==m;
+  const list=byDate[ds]||[];let boxes='';
+  list.slice(0,3).forEach(p=>{boxes+=calBox(p);});
+  if(list.length>3)boxes+=`<div class="cal-more" onclick="event.stopPropagation();openDayModal('${ds}')">+${list.length-3} 더보기</div>`;
+  cells+=`<div class="cal-cell ${other?'other':''} ${ds===today?'today':''}"><span class="dnum">${d.getDate()}</span>
+    <button class="add-day" title="이 날짜에 추가" onclick="openForm(null,'${ds}')">＋</button>${boxes}</div>`;}
+ body.innerHTML=`<div class="cal-head"><button onclick="calMove(-1)">‹</button><h3>${y}년 ${m+1}월</h3><button onclick="calMove(1)">›</button></div>
+  <div class="cal-grid">${['일','월','화','수','목','금','토'].map(w=>`<div class="cal-dow">${w}</div>`).join('')}${cells}</div>`;
+}
+function calBox(p){return `<div class="cal-box ${statusClass(p)}" onclick="openDetail('${p.id}')">
+  <div class="bname">${esc(p.name)}</div><div class="bdept">${esc(p.dept||'')}</div>
+  <div class="bchecks" onclick="event.stopPropagation()">
+   <label><input type="checkbox" ${p.firstDone?'checked':''} onchange="toggleCheck('${p.id}','firstDone',this.checked)">1차</label>
+   <label><input type="checkbox" ${p.secondDone?'checked':''} onchange="toggleCheck('${p.id}','secondDone',this.checked)">2차</label>
+  </div></div>`;}
+function calMove(n){calRef=new Date(calRef.getFullYear(),calRef.getMonth()+n,1);renderCalendar();}
+function toggleCheck(id,key,val){const p=state.people.find(x=>x.id===id);if(!p)return;p[key]=val;log('edit',p.name,(key==='firstDone'?'1차 입력':'2차 입력')+' '+(val?'완료':'해제'));save();updateResults();renderNav();}
+function openDayModal(ds){const list=state.people.filter(p=>p.joinDate===ds);openModal(`${fmtDateK(ds)} 입사자 (${list.length}명)`,`<div>${list.map(p=>calBox(p)).join('')}</div>`,'');}
+
+/* ===== UNIFIED RECORD MODAL (view/edit share layout) ===== */
+function cloneStyles(o){return JSON.parse(JSON.stringify((o&&o.styles)||{}));}
+function openDetail(id){const p=state.people.find(x=>x.id===id);if(p){curRecord=Object.assign({},p);curRecord.styles=cloneStyles(p);renderRecord('view');}}
+function openForm(id,presetDate){const src=id?state.people.find(x=>x.id===id):null;curRecord=src?Object.assign({},src):{id:null,nationality:'대한민국',joinDate:presetDate||''};curRecord.styles=cloneStyles(src);renderRecord('edit');}
+function editRecord(){renderRecord('edit');}
+function viewRecord(){const fresh=state.people.find(x=>x.id===curRecord.id);curRecord=Object.assign({},fresh);curRecord.styles=cloneStyles(fresh);renderRecord('view');}
+
+function renderRecord(mode){const p=curRecord;const isNew=!p.id;
+ const body=SECTIONS.map(s=>{
+   const inner=s.f.map(k=>k==='__status'?statusBlock(p,mode):fieldBlock(k,p,mode)).join('');
+   return `<div class="rsec"><div class="rsec-head"><span class="ic">${s.icon}</span><span class="rt">${s.t}</span><span class="rline"></span></div><div class="rsec-body">${inner}</div></div>`;
+ }).join('');
+ let foot;
+ if(mode==='view')foot=`<button class="btn ghost" onclick="closeModal()">닫기</button><button class="btn danger" onclick="delPerson('${p.id}')">삭제</button><button class="btn primary" onclick="editRecord()">수정</button>`;
+ else foot=`<button class="btn ghost" onclick="${isNew?'closeModal()':'viewRecord()'}">취소</button><button class="btn primary" onclick="saveRecord('${p.id||''}')">저장</button>`;
+ const title=isNew?'신규입사자 추가':(esc(p.name)+' 님'+(mode==='edit'?' · 수정':' 상세정보'));
+ openModal(title,body,foot);
+ if(mode==='edit'){updatePayUnit();sizeTextareas();SECTIONS.forEach(s=>s.f.forEach(k=>{if(k!=='__status')applyEditPreview(k);}));}
+}
+const EMAILF=['handoverEmail','orgLeadEmail'];
+const HL={yellow:'#FFF3B0',pink:'#FAD1E0',mint:'#C9F2E3'};
+const TXT={red:'#E24B4A',blue:'#185FA5'};
+function styleCss(p,k){const st=(p.styles&&p.styles[k])||{};let s='';if(st.hl&&HL[st.hl])s+='background:'+HL[st.hl]+';padding:1px 6px;border-radius:5px;';if(st.color&&TXT[st.color])s+='color:'+TXT[st.color]+';font-weight:600;';return s;}
+function viewVal(k,p){const meta=FIELDS[k];const v=p[k];
+ if(meta.badge)return v?`<span class="badge ${meta.badge}">${esc(v)}</span>`:'<span style=color:#b6bccb>—</span>';
+ if(!v&&v!==0)return'<span style=color:#b6bccb>—</span>';
+ if(meta.type==='salary')return maskVal(fmtSalary(v,p),meta.sensitive);
+ if(meta.sensitive)return maskVal(v,1);
+ const css=styleCss(p,k);
+ if(EMAILF.includes(k))return `<a href="mailto:${esc(v)}" class="email-link" style="${css}">${esc(v)}</a>`;
+ return `<span style="${css}">${esc(v)}</span>`;
+}
+function toggleFieldMenu(k){const el=document.getElementById('fm_'+k);if(!el)return;const willOpen=el.classList.contains('hidden');document.querySelectorAll('.fmenu').forEach(m=>m.classList.add('hidden'));if(willOpen)el.classList.remove('hidden');}
+function editStyle(k,type,val){if(!curRecord.styles)curRecord.styles={};if(!curRecord.styles[k])curRecord.styles[k]={};if(curRecord.styles[k][type]===val)delete curRecord.styles[k][type];else curRecord.styles[k][type]=val;if(!curRecord.styles[k].hl&&!curRecord.styles[k].color)delete curRecord.styles[k];applyEditPreview(k);const m=document.getElementById('fm_'+k);if(m)m.classList.add('hidden');}
+function clearFieldStyle(k){if(curRecord.styles)delete curRecord.styles[k];applyEditPreview(k);const m=document.getElementById('fm_'+k);if(m)m.classList.add('hidden');}
+function applyEditPreview(k){const st=(curRecord.styles&&curRecord.styles[k])||{};const el=document.getElementById('f_'+k);if(el&&(el.tagName==='INPUT'||el.tagName==='TEXTAREA')&&el.type!=='date'&&el.type!=='hidden'){el.style.background=(st.hl&&HL[st.hl])?HL[st.hl]:'';el.style.color=(st.color&&TXT[st.color])?TXT[st.color]:'';}const dot=document.getElementById('fdot_'+k);if(dot){const c=st.hl?HL[st.hl]:(st.color?TXT[st.color]:'');dot.style.background=c||'transparent';dot.style.display=c?'inline-block':'none';}}
+function onFormDatePart(k){const y=document.getElementById('fj_Y').value,m=document.getElementById('fj_M').value,d=document.getElementById('fj_D').value;document.getElementById('f_'+k).value=(y&&m&&d)?`${y}-${m}-${d}`:'';}
+function onFormDatePicker(k){const v=document.getElementById('f_'+k).value;if(v){document.getElementById('fj_Y').value=v.slice(0,4);document.getElementById('fj_M').value=v.slice(5,7);document.getElementById('fj_D').value=v.slice(8,10);}}
+function openFormDate(k){const el=document.getElementById('f_'+k);if(el.showPicker){try{el.showPicker();return;}catch(e){}}el.classList.remove('date-hidden');el.style.opacity=1;el.focus();}
+function maskVal(val,sens){if(!val)return'<span style=color:#b6bccb>—</span>';if(!sens||!state.settings.maskSensitive)return esc(val);return `<span class="mask" onclick="this.outerHTML='${esc(val).replace(/\\/g,'').replace(/'/g,"\\'")}'">●●●● 보기</span>`;}
+function fieldBlock(k,p,mode){const meta=FIELDS[k];
+ if(mode==='view')return `<div class="drow"><div class="k">${meta.label}</div><div class="v">${viewVal(k,p)}</div></div>`;
+ const tipBtn=`<button type="button" class="tip-btn ${getTip(k)?'has':''}" id="tipbtn_${k}" onclick="toggleTip('${k}')">TIP</button>`;
+ const tipBox=`<div class="tip-box hidden" id="tip_${k}">${tipView(k)}</div>`;
+ const menu=`<span class="field-menu-wrap"><span class="fdot" id="fdot_${k}"></span><button type="button" class="dots" title="강조 표시 (형광펜·글자색)" onclick="toggleFieldMenu('${k}')">⋯</button></span>`;
+ const fmenu=`<div class="fmenu hidden" id="fm_${k}"><span class="pl">형광펜</span>${Object.keys(HL).map(c=>`<button type="button" class="sw" style="background:${HL[c]}" title="${c}" onclick="editStyle('${k}','hl','${c}')"></button>`).join('')}<span class="pl">글자색</span>${Object.keys(TXT).map(c=>`<button type="button" class="sw" style="color:${TXT[c]}" onclick="editStyle('${k}','color','${c}')">A</button>`).join('')}<button type="button" class="sw clear" title="지우기" onclick="clearFieldStyle('${k}')">✕</button></div>`;
+ return `<div class="field"><label>${meta.label} ${tipBtn} ${meta.req?'<span class=req>*</span>':''}${menu}</label>${tipBox}${fmenu}${editControl(k,p)}</div>`;
+}
+function editControl(k,p){const meta=FIELDS[k];const v=esc(p[k]||'');
+ if(meta.type==='date'){const cur=p[k]||'',yy=cur.slice(0,4),mo=cur.slice(5,7),dd=cur.slice(8,10),ty=new Date().getFullYear();let yrs=[];for(let i=2020;i<=ty+2;i++)yrs.push(String(i));if(yy&&!yrs.includes(yy))yrs.push(yy);const mm=Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')),dds=Array.from({length:31},(_,i)=>String(i+1).padStart(2,'0'));
+   return `<div class="date-parts"><select id="fj_Y" onchange="onFormDatePart('${k}')"><option value="">연도</option>${yrs.map(o=>`<option ${yy===o?'selected':''}>${o}</option>`).join('')}</select><select id="fj_M" onchange="onFormDatePart('${k}')"><option value="">월</option>${mm.map(o=>`<option ${mo===o?'selected':''}>${o}</option>`).join('')}</select><select id="fj_D" onchange="onFormDatePart('${k}')"><option value="">일</option>${dds.map(o=>`<option ${dd===o?'selected':''}>${o}</option>`).join('')}</select><button type="button" class="cal-btn" title="달력에서 선택" onclick="openFormDate('${k}')">📅</button><input type="date" id="f_${k}" class="date-hidden" value="${cur}" onchange="onFormDatePicker('${k}')"></div>`;}
+ if(meta.type==='area')return `<textarea id="f_${k}" class="grow-ta" oninput="autoGrow(this)">${v}</textarea>`;
+ if(meta.type==='select')return `<select id="f_${k}">${meta.options.map(o=>`<option ${((p[k]||'대한민국')===o)?'selected':''}>${o}</option>`).join('')}</select>`;
+ if(meta.type==='pay')return `<select id="f_${k}" onchange="updatePayUnit()"><option value="">선택</option>${meta.options.map(o=>`<option ${p[k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
+ if(meta.type==='salary')return `<div class="salary-wrap"><input id="f_${k}" value="${v}"><span class="unit" id="unit_${k}"></span></div>`;
+ if(meta.type==='chips')return `<div class="chip-group" id="cg_${k}">${meta.options.map(o=>`<button type="button" class="chip ${p[k]===o?'on':''}" onclick="pickChip(this,'${k}','${esc(o)}')">${esc(o)}</button>`).join('')}</div><input type="hidden" id="f_${k}" value="${v}">`;
+ if(meta.type==='dept')return `<input id="f_${k}" list="deptList" value="${v}" placeholder="입력 시 저장됩니다"><datalist id="deptList">${state.departments.map(d=>`<option value="${esc(d)}">`).join('')}</datalist>`;
+ if(meta.type==='contact')return `<input id="f_${k}" list="contactList" value="${v}" oninput="autofillEmail('${k}')" placeholder="저장된 이름 검색"><datalist id="contactList">${state.contacts.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>`;
+ return `<input id="f_${k}" value="${v}">`;
+}
+function statusBlock(p,mode){
+ if(mode==='view')return `<div class="drow"><div class="k">1차 입력</div><div class="v">${p.firstDone?'<span class="badge navy">완료</span>':'<span class="badge gray">미완료</span>'}</div></div><div class="drow"><div class="k">2차 입력</div><div class="v">${p.secondDone?'<span class="badge navy">완료</span>':'<span class="badge gray">미완료</span>'}</div></div>`;
+ return `<div class="chk"><label><input type="checkbox" id="f_firstDone" ${p.firstDone?'checked':''}>1차 입력 완료</label><label><input type="checkbox" id="f_secondDone" ${p.secondDone?'checked':''}>2차 입력 완료</label></div>`;
+}
+function pickChip(btn,field,val){const grp=document.getElementById('cg_'+field);const cur=document.getElementById('f_'+field);
+ if(cur.value===val){cur.value='';btn.classList.remove('on');}else{[...grp.children].forEach(c=>c.classList.remove('on'));btn.classList.add('on');cur.value=val;}}
+function updatePayUnit(){const t=document.getElementById('f_payType');if(!t)return;const u=t.value==='월급제'?'원/月':(t.value==='연봉제'?'원':'');['salary','extraSalary'].forEach(k=>{const s=document.getElementById('unit_'+k);if(s)s.textContent=u;});}
+function autofillEmail(which){const nameEl=document.getElementById('f_'+which);const emailEl=document.getElementById('f_'+which+'Email');if(!emailEl)return;const c=state.contacts.find(x=>x.name===nameEl.value);if(c&&!emailEl.value)emailEl.value=c.email;}
+/* tips */
+function tipView(k){const t=getTip(k);return `<div class="tip-text">${t?esc(t):'<span style=color:#9aa6bd>등록된 TIP이 없습니다.</span>'}</div><div class="tip-actions"><button type="button" class="mini edit" onclick="editTip('${k}')">${t?'수정':'추가'}</button></div>`;}
+function toggleTip(k){document.getElementById('tip_'+k).classList.toggle('hidden');}
+function editTip(k){document.getElementById('tip_'+k).innerHTML=`<textarea id="tipEdit_${k}">${esc(getTip(k))}</textarea><div class="tip-actions"><button type="button" class="mini save" onclick="saveTip('${k}')">저장</button><button type="button" class="mini cancel" onclick="cancelTip('${k}')">취소</button></div>`;}
+function saveTip(k){const val=document.getElementById('tipEdit_'+k).value;state.tips[k]=val;save();document.getElementById('tip_'+k).innerHTML=tipView(k);const b=document.getElementById('tipbtn_'+k);if(b)b.classList.toggle('has',!!val);toast('TIP이 저장되어 전체에 적용됩니다.');}
+function cancelTip(k){document.getElementById('tip_'+k).innerHTML=tipView(k);}
+
+function saveRecord(editId){const g=k=>{const el=document.getElementById('f_'+k);return el?(el.type==='checkbox'?el.checked:el.value.trim()):'';};
+ const name=g('name'),joinDate=g('joinDate');
+ if(!name){toast('이름은 필수입니다.');return;}
+ if(!joinDate){toast('입사일은 필수입니다.');return;}
+ const np={id:editId||uid(),name,joinDate,dept:g('dept'),rank:g('rank'),joinType:g('joinType'),empStatus:g('empStatus'),nationality:g('nationality'),
+   handover:g('handover'),handoverEmail:g('handoverEmail'),orgLead:g('orgLead'),orgLeadEmail:g('orgLeadEmail'),note:g('note'),
+   payType:g('payType'),salary:g('salary'),extraSalary:g('extraSalary'),healthDependent:g('healthDependent'),bank:g('bank'),account:g('account'),accountHolder:g('accountHolder'),
+   marriage:g('marriage'),children:g('children'),education:g('education'),school:g('school'),career:g('career'),internalMemo:g('internalMemo'),firstDone:g('firstDone'),secondDone:g('secondDone')};
+ if(curRecord.styles&&Object.keys(curRecord.styles).length)np.styles=curRecord.styles;
+ if(state.settings.dupDetect && !editId){const dup=state.people.find(p=>p.name===name);if(dup){if(!confirm(`이미 '${name}' 이름이 등록되어 있습니다.\n입력 규칙상 동명이인은 이름 뒤에 알파벳을 표기해주세요 (예: ${name} A).\n\n그대로 저장할까요?`))return;}}
+ if(np.dept&&!state.departments.includes(np.dept))state.departments.push(np.dept);
+ saveContact(np.handover,np.handoverEmail,np.dept);saveContact(np.orgLead,np.orgLeadEmail,np.dept);
+ if(editId){const idx=state.people.findIndex(p=>p.id===editId);const ch=diffPerson(state.people[idx],np);state.people[idx]=np;log('edit',name,ch.length?('변경: '+ch.join(', ')):'수정');toast('수정되었습니다.');curRecord=Object.assign({},np);save();renderRecord('view');}
+ else{state.people.push(np);log('add',name,`입사일 ${joinDate}${np.dept?' · '+np.dept:''}`);toast('추가되었습니다.');save();closeModal();}
+ renderNav();if(curTab==='home')updateResults();
+}
+function saveContact(name,email,dept){if(!name)return;const i=state.contacts.findIndex(c=>c.name===name);if(i>=0){if(email)state.contacts[i].email=email;if(dept&&!state.contacts[i].dept)state.contacts[i].dept=dept;}else state.contacts.push({id:uid(),name,email:email||'',dept:dept||''});}
+function delPerson(id){const p=state.people.find(x=>x.id===id);if(!p)return;
+ if(state.settings.deleteConfirm && !confirm(`'${p.name}' 님의 정보를 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`))return;
+ state.people=state.people.filter(x=>x.id!==id);log('del',p.name,`입사일 ${p.joinDate} 정보 삭제`);save();closeModal();toast('삭제되었습니다.');go('home');}
+
+/* ===== INFO ===== */
+function renderInfo(){const v=document.getElementById('view');if(infoSub==='email')renderEmail(v);else renderDept(v);window.scrollTo(0,0);}
+function renderEmail(v){
+ v.innerHTML=`<div class="page-head"><div><div class="label upper">Directory · E-Mail</div><h2>✉️ E-Mail 명부</h2><div class="sub">신규입사자 인계자, 조직자 이메일 정보 <span class="count-pill">${state.contacts.length}명</span></div></div></div>
+ <div class="card"><div class="inline-add">
+   <input id="ce_name" placeholder="이름"><input id="ce_email" placeholder="이메일"><input id="ce_dept" list="ceDeptList" placeholder="부서"><datalist id="ceDeptList">${state.departments.map(d=>`<option value="${esc(d)}">`).join('')}</datalist><button class="btn pink sm" onclick="addContact()">＋ 추가</button></div>
+   <div id="contactRows">${contactRows()}</div></div>
+ <div class="sub" style="margin-top:10px;color:var(--muted);font-size:12px">· 부서끼리 묶여 표시됩니다. 행 왼쪽 <b>⠿</b> 를 잡고 드래그하면 순서를 바꿀 수 있어요.</div>`;
+}
+function contactRows(){if(!state.contacts.length)return`<div class="empty">저장된 연락처가 없습니다.</div>`;
+ const byDept={};state.contacts.forEach(c=>{const d=c.dept||'(부서 미지정)';(byDept[d]=byDept[d]||[]).push(c);});
+ const depts=Object.keys(byDept).sort((a,b)=>a.localeCompare(b));let html='';
+ depts.forEach(d=>{html+=`<div class="dept-group-head">${esc(d)}<span class="c">${byDept[d].length}명</span></div>`;
+  byDept[d].forEach(c=>{html+=`<div class="list-row drag" draggable="true" data-id="${c.id}" ondragstart="dragStart(event,'${c.id}')" ondragover="dragOver(event)" ondrop="dropContact(event,'${c.id}')" ondragend="dragEnd(event)">
+    <span class="handle">⠿</span><div class="grow"><div class="lname">${esc(c.name)}</div><div class="lsub">${esc(c.email)||'<span style=color:#c3c8d4>이메일 없음</span>'}</div></div>
+    <button class="btn ghost sm" onclick="editContact('${c.id}')">수정</button><button class="btn ghost sm" onclick="rmContact('${c.id}')">삭제</button></div>`;});});
+ return html;}
+let dragId=null;
+function dragStart(e,id){dragId=id;e.dataTransfer.effectAllowed='move';e.currentTarget.classList.add('dragging');}
+function dragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';}
+function dragEnd(e){e.currentTarget.classList.remove('dragging');}
+function dropContact(e,targetId){e.preventDefault();if(!dragId||dragId===targetId)return;const arr=state.contacts;const from=arr.findIndex(c=>c.id===dragId);if(from<0)return;const [moved]=arr.splice(from,1);const target=arr.find(c=>c.id===targetId);if(target)moved.dept=target.dept;const to=arr.findIndex(c=>c.id===targetId);arr.splice(to,0,moved);log('edit','E-Mail 명부',`${moved.name} 순서 이동`);save();document.getElementById('contactRows').innerHTML=contactRows();dragId=null;}
+function addContact(){const n=document.getElementById('ce_name').value.trim();const e=document.getElementById('ce_email').value.trim();const d=document.getElementById('ce_dept').value.trim();if(!n){toast('이름을 입력하세요.');return;}saveContact(n,e,d);if(d&&!state.departments.includes(d))state.departments.push(d);log('edit','E-Mail 명부',`${n} 추가`);save();renderEmail(document.getElementById('view'));toast('저장되었습니다.');}
+function editContact(id){const c=state.contacts.find(x=>x.id===id);
+ const body=`<div class="field"><label>이름</label><input id="ec_name" value="${esc(c.name)}"></div>
+   <div class="field"><label>이메일</label><input id="ec_email" value="${esc(c.email)}"></div>
+   <div class="field"><label>부서</label><input id="ec_dept" list="ecDeptList" value="${esc(c.dept||'')}"><datalist id="ecDeptList">${state.departments.map(d=>`<option value="${esc(d)}">`).join('')}</datalist></div>`;
+ openModal('연락처 수정',body,`<button class="btn ghost" onclick="closeModal()">취소</button><button class="btn primary" onclick="saveContactEdit('${id}')">저장</button>`);
+}
+function saveContactEdit(id){const c=state.contacts.find(x=>x.id===id);c.name=document.getElementById('ec_name').value.trim();c.email=document.getElementById('ec_email').value.trim();c.dept=document.getElementById('ec_dept').value.trim();if(c.dept&&!state.departments.includes(c.dept))state.departments.push(c.dept);log('edit','E-Mail 명부',`${c.name} 수정`);save();closeModal();renderEmail(document.getElementById('view'));toast('수정되었습니다.');}
+function rmContact(id){const c=state.contacts.find(x=>x.id===id);if(!confirm(`'${c.name}' 연락처를 삭제할까요?`))return;state.contacts=state.contacts.filter(x=>x.id!==id);log('del','E-Mail 명부',`${c.name} 삭제`);save();renderEmail(document.getElementById('view'));}
+
+function renderDept(v){
+ v.innerHTML=`<div class="page-head"><div><div class="label upper">Directory · Departments</div><h2>🏢 부서 명부</h2><div class="sub">저장된 부서는 입사자 입력 시 드롭다운으로 제공됩니다 <span class="count-pill">${state.departments.length}개</span></div></div></div>
+ <div class="card"><div class="inline-add"><input id="cd_name" placeholder="부서명 (예: 인사 Unit)" onkeydown="if(event.key==='Enter')addDept()"><button class="btn pink sm" onclick="addDept()">＋ 추가</button></div>
+ <div id="deptRows">${deptRows()}</div></div>`;
+}
+function deptRows(){if(!state.departments.length)return`<div class="empty">저장된 부서가 없습니다.</div>`;
+ return state.departments.slice().sort((a,b)=>a.localeCompare(b)).map(d=>`<div class="list-row"><div class="grow"><div class="lname">${esc(d)}</div></div>
+  <button class="btn ghost sm" onclick="editDept('${esc(d).replace(/'/g,"\\'")}')">수정</button>
+  <button class="btn ghost sm" onclick="rmDept('${esc(d).replace(/'/g,"\\'")}')">삭제</button></div>`).join('');}
+function addDept(){const n=document.getElementById('cd_name').value.trim();if(!n)return;if(state.departments.includes(n)){toast('이미 있는 부서입니다.');return;}state.departments.push(n);log('edit','부서 명부',`${n} 추가`);save();renderDept(document.getElementById('view'));toast('저장되었습니다.');}
+function editDept(d){openModal('부서명 수정',`<div class="field"><label>부서명</label><input id="ed_dept" value="${esc(d)}"></div>`,`<button class="btn ghost" onclick="closeModal()">취소</button><button class="btn primary" onclick="saveDeptEdit('${esc(d).replace(/'/g,"\\'")}')">저장</button>`);}
+function saveDeptEdit(old){const t=document.getElementById('ed_dept').value.trim();if(!t){toast('부서명을 입력하세요.');return;}state.departments=state.departments.map(x=>x===old?t:x);state.people.forEach(p=>{if(p.dept===old)p.dept=t;});state.contacts.forEach(c=>{if(c.dept===old)c.dept=t;});log('edit','부서 명부',`${old} → ${t}`);save();closeModal();renderDept(document.getElementById('view'));toast('수정되었습니다.');}
+function rmDept(d){if(!confirm(`'${d}' 부서를 삭제할까요? (소속 인원의 부서명은 유지됩니다)`))return;state.departments=state.departments.filter(x=>x!==d);log('del','부서 명부',`${d} 삭제`);save();renderDept(document.getElementById('view'));}
+
+/* ===== ALARM ===== */
+function renderAlarm(v){
+ const icon={add:'➕',edit:'✏️',del:'🗑️',login:'🔓'};const cls={add:'add',edit:'edit',del:'del',login:'login'};const verb={add:'추가',edit:'수정',del:'삭제',login:'접속'};
+ let logs;if(alarmFolder==='all')logs=state.logs;else if(alarmFolder==='none')logs=state.logs.filter(l=>!l.folderId);else logs=state.logs.filter(l=>l.folderId===alarmFolder);
+ const chip=(id,label,cnt,delable)=>`<span class="fchip ${alarmFolder===id?'active':''}" onclick="alarmFolder='${id}';renderAlarm(document.getElementById('view'))">${label} <span style="opacity:.6">${cnt}</span>${delable?`<button class="del" onclick="event.stopPropagation();delFolder('${id}')">×</button>`:''}</span>`;
+ const folderChips=chip('all','전체',state.logs.length)+chip('none','미분류',state.logs.filter(l=>!l.folderId).length)+state.logFolders.map(f=>chip(f.id,'📁 '+esc(f.name),state.logs.filter(l=>l.folderId===f.id).length,true)).join('')+`<button class="btn ghost sm" onclick="addFolder()">＋ 폴더</button>`;
+ const moveOpts=l=>`<select class="movesel" onchange="moveLog('${l.id}',this.value)"><option value="">폴더 이동…</option><option value="">미분류</option>${state.logFolders.map(f=>`<option value="${f.id}" ${l.folderId===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}</select>`;
+ v.innerHTML=`<div class="page-head"><div><div class="label upper">Activity</div><h2>🔔 변경 이력</h2><div class="sub">누가 언제 무엇을 변경했는지 기록됩니다 <span class="count-pill">${state.logs.length}건</span></div></div>
+   ${state.logs.length?`<button class="btn ghost" onclick="clearLogs()">이력 비우기</button>`:''}</div>
+ <div class="folder-bar">${folderChips}</div>
+ <div class="card">${logs.length?logs.map(l=>`<div class="log-row"><div class="ic ${cls[l.action]}">${icon[l.action]}</div>
+   <div class="lmain"><b>${esc(l.editor)}</b> 님이 ${l.target?`<b>${esc(l.target)}</b> `:''}${verb[l.action]}${l.action==='login'?'':' 했습니다'}${l.detail?`<div class="ldetail">${esc(l.detail)}</div>`:''}<div style="margin-top:6px">${moveOpts(l)}</div></div>
+   <div class="ltime" title="${new Date(l.ts).toLocaleString('ko-KR')}">${relTime(l.ts)}</div></div>`).join(''):`<div class="empty"><div class="big">🔔</div>이 폴더에 표시할 이력이 없습니다.</div>`}</div>`;
+ renderNav();
+}
+function addFolder(){openModal('새 폴더 만들기',`<div class="field"><label>폴더 이름</label><input id="nf_name" placeholder="예: 2026년 입사, 중요"></div>`,`<button class="btn ghost" onclick="closeModal()">취소</button><button class="btn primary" onclick="createFolder()">생성</button>`);setTimeout(()=>{const el=document.getElementById('nf_name');if(el)el.focus();},50);}
+function createFolder(){const n=document.getElementById('nf_name').value.trim();if(!n){toast('폴더 이름을 입력하세요.');return;}state.logFolders.push({id:uid(),name:n});save();closeModal();renderAlarm(document.getElementById('view'));toast('폴더가 생성되었습니다.');}
+function delFolder(id){const f=state.logFolders.find(x=>x.id===id);if(!confirm(`'${f.name}' 폴더를 삭제할까요? (안의 알림은 미분류로 이동)`))return;state.logs.forEach(l=>{if(l.folderId===id)l.folderId=null;});state.logFolders=state.logFolders.filter(x=>x.id!==id);if(alarmFolder===id)alarmFolder='all';save();renderAlarm(document.getElementById('view'));}
+function moveLog(logId,folderId){const l=state.logs.find(x=>x.id===logId);if(!l)return;l.folderId=folderId||null;save();renderAlarm(document.getElementById('view'));toast('폴더로 이동했습니다.');}
+function clearLogs(){if(!confirm('변경 이력을 모두 비울까요? (폴더는 유지됩니다)'))return;state.logs=[];save();renderAlarm(document.getElementById('view'));}
+
+/* ===== STATS ===== */
+function renderStats(v){
+ const now=new Date();const thisM=ymd(now).slice(0,7);
+ const total=state.people.length;const thisMonth=state.people.filter(p=>(p.joinDate||'').slice(0,7)===thisM).length;
+ const done=state.people.filter(p=>p.firstDone&&p.secondDone).length;const pending=total-done;
+ const deptCnt={};state.people.forEach(p=>{const d=p.dept||'(미지정)';deptCnt[d]=(deptCnt[d]||0)+1;});
+ const deptArr=Object.entries(deptCnt).sort((a,b)=>b[1]-a[1]);const maxD=Math.max(1,...deptArr.map(d=>d[1]));
+ const monCnt={};state.people.forEach(p=>{const mo=(p.joinDate||'').slice(0,7);if(mo)monCnt[mo]=(monCnt[mo]||0)+1;});
+ const monArr=Object.entries(monCnt).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);const maxM=Math.max(1,...monArr.map(m=>m[1]));
+ v.innerHTML=`<div class="page-head"><div><div class="label upper">Insights</div><h2>📊 통계 요약</h2><div class="sub">${now.getFullYear()}년 ${now.getMonth()+1}월 기준</div></div></div>
+ <div class="stat-grid">
+   <div class="stat-card"><div class="n">${thisMonth}</div><div class="t">이번 달 입사자</div></div>
+   <div class="stat-card"><div class="n">${total}</div><div class="t">전체 등록 인원</div></div>
+   <div class="stat-card"><div class="n">${done}</div><div class="t">입력 완료 (1·2차)</div></div>
+   <div class="stat-card"><div class="n">${pending}</div><div class="t">입력 진행 중</div></div></div>
+ <div class="card" style="padding:20px;margin-bottom:16px"><h4 style="margin:0 0 16px;font-size:14px">부서별 입사자</h4>
+   ${deptArr.length?deptArr.map(([d,c])=>`<div class="bar-row"><div class="bl">${esc(d)}</div><div class="bar-track"><div class="bar-fill" style="width:${c/maxD*100}%"></div></div><div class="bv">${c}명</div></div>`).join(''):'<div class="empty">데이터가 없습니다.</div>'}</div>
+ <div class="card" style="padding:20px"><h4 style="margin:0 0 16px;font-size:14px">월별 입사 추이 (최근 6개월)</h4>
+   ${monArr.length?monArr.map(([m,c])=>`<div class="bar-row"><div class="bl">${m}</div><div class="bar-track"><div class="bar-fill" style="width:${c/maxM*100}%"></div></div><div class="bv">${c}명</div></div>`).join(''):'<div class="empty">데이터가 없습니다.</div>'}</div>`;
+}
+
+/* ===== SETTINGS ===== */
+function renderSettings(v){
+ const sw=(key,title,desc)=>`<div class="set-item"><div><div class="st-t">${title}</div><div class="st-d">${desc}</div></div>
+   <label class="switch"><input type="checkbox" ${state.settings[key]?'checked':''} onchange="setToggle('${key}',this.checked)"><span class="slider"></span></label></div>`;
+ v.innerHTML=`<div class="page-head"><div><div class="label upper">Settings</div><h2>⚙️ 설정</h2></div></div>
+ <div class="set-block">
+   ${sw('deleteConfirm','삭제 전 확인창','사람 삭제 시 되돌릴 수 없다는 확인창을 표시합니다.')}
+   ${sw('dupDetect','동명이인 자동 감지','같은 이름 추가 시 알파벳 표기 안내창을 띄웁니다.')}
+   ${sw('maskSensitive','민감정보 마스킹','상세보기에서 연봉·계좌번호를 기본 가림(●●●) 처리합니다.')}
+ </div>
+ <div class="set-block">
+   <div class="set-item"><div><div class="st-t">💾 데이터 백업 내보내기</div><div class="st-d">모든 입사자·부서·이메일·이력·TIP을 파일 하나(.json)로 저장합니다. USB·메일에 보관하면 데이터가 사라지지 않습니다.</div></div>
+     <button class="btn primary sm" onclick="backupExport()">내보내기</button></div>
+   <div class="set-item"><div><div class="st-t">📂 데이터 백업 가져오기</div><div class="st-d">저장해둔 백업 파일(.json)로 전체 데이터를 복원합니다.</div></div>
+     <label class="btn ghost sm" style="cursor:pointer">가져오기<input type="file" accept=".json" style="display:none" onchange="backupImport(this)"></label></div>
+ </div>
+ <div class="set-block">
+   <div class="set-item"><div><div class="st-t">접속 담당자</div><div class="st-d">현재 이 이름으로 변경 이력이 기록됩니다.</div></div><div><span class="badge navy">${esc(session.name||'-')}</span></div></div>
+   <div class="set-item"><div><div class="st-t">비밀번호</div><div class="st-d">보안을 위해 앱 소스 코드에서 관리됩니다.</div></div><div><span class="badge gray">●●●●</span></div></div>
+ </div>`;
+}
+function setToggle(key,val){state.settings[key]=val;save();toast('설정이 저장되었습니다.');}
+function backupExport(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='신규입사자_백업_'+ymd(new Date())+'.json';a.click();toast('백업 파일이 저장되었습니다.');}
+function backupImport(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!confirm('현재 데이터를 백업 파일 내용으로 덮어쓸까요?'))return;state=Object.assign({people:[],departments:[],contacts:[],logs:[],logFolders:[],tips:{},settings:{}},d);log('edit','데이터','백업 복원');save();toast('복원되었습니다.');go('home');}catch(e){toast('올바른 백업 파일이 아닙니다.');}};r.readAsText(f);}
+
+/* ===== EXPORT ===== */
+function openExport(){
+ const dates=[...new Set(state.people.map(p=>p.joinDate).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+ const body=`
+ <div class="field"><label>내보낼 범위</label><select id="ex_scope" onchange="exScopeChange()"><option value="all">전체 내용</option><option value="date">특정 입사일</option><option value="person">특정 사람</option></select></div>
+ <div class="field hidden" id="ex_dateWrap"><label>입사일 선택</label><select id="ex_date">${dates.map(d=>`<option value="${d}">${d}</option>`).join('')}</select></div>
+ <div class="field hidden" id="ex_personWrap"><label>사람 선택 (여러 명 가능)</label><select id="ex_person" multiple size="6" style="height:auto">${state.people.slice().sort((a,b)=>(b.joinDate||'').localeCompare(a.joinDate||'')).map(p=>`<option value="${p.id}">${esc(p.name)} (${esc(p.joinDate)})</option>`).join('')}</select></div>
+ <div class="field"><label>내보낼 항목</label><select id="ex_cols"><option value="summary">요약 7개 컬럼 (이름·입사일·부서·직급/직책·인계자·조직장·비고)</option><option value="full">상세 전체 필드</option></select></div>
+ <div class="chk"><label><input type="checkbox" id="ex_sensitive" checked>민감정보(연봉·계약외연봉·계좌번호) 포함</label></div>`;
+ openModal('엑셀로 내보내기',body,`<button class="btn ghost" onclick="closeModal()">취소</button><button class="btn primary" onclick="doExport()">📥 엑셀 다운로드</button>`);
+}
+function exScopeChange(){const s=document.getElementById('ex_scope').value;document.getElementById('ex_dateWrap').classList.toggle('hidden',s!=='date');document.getElementById('ex_personWrap').classList.toggle('hidden',s!=='person');}
+function doExport(){
+ const scope=document.getElementById('ex_scope').value;let arr=state.people.slice();
+ if(scope==='date'){const d=document.getElementById('ex_date').value;arr=arr.filter(p=>p.joinDate===d);}
+ if(scope==='person'){const sel=[...document.getElementById('ex_person').selectedOptions].map(o=>o.value);arr=arr.filter(p=>sel.includes(p.id));}
+ if(!arr.length){toast('내보낼 데이터가 없습니다.');return;}
+ arr.sort((a,b)=>(b.joinDate||'').localeCompare(a.joinDate||''));
+ const cols=document.getElementById('ex_cols').value;const sens=document.getElementById('ex_sensitive').checked;let rows;
+ if(cols==='summary'){rows=arr.map(p=>({'이름':p.name,'입사일':p.joinDate,'부서':p.dept,'직급/직책':p.rank,'인계자':p.handover,'조직장':p.orgLead,'비고':p.note}));}
+ else{rows=arr.map(p=>{const o={'이름':p.name,'입사일':p.joinDate,'부서':p.dept,'직급/직책':p.rank,'입사구분':p.joinType,'정규직여부':p.empStatus,'국적':p.nationality,'인계자':p.handover,'인계자이메일':p.handoverEmail,'조직장':p.orgLead,'조직장이메일':p.orgLeadEmail,'비고':p.note,'급여유형':p.payType,'건강보험피부양자':p.healthDependent,'은행':p.bank,'예금주':p.accountHolder,'혼인여부':p.marriage,'자녀유무':p.children,'최종학력':p.education,'학교/전공':p.school,'경력사항':p.career,'내부관리메모':p.internalMemo,'1차입력':p.firstDone?'완료':'','2차입력':p.secondDone?'완료':''};
+   if(sens){o['연봉']=fmtSalary(p.salary,p);o['계약외연봉']=fmtSalary(p.extraSalary,p);o['계좌번호']=p.account;}return o;});}
+ const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'신규입사자');
+ XLSX.writeFile(wb,'신규입사자_'+ymd(new Date())+'.xlsx');closeModal();toast('엑셀 파일이 저장되었습니다.');
+}
+
+/* ===== MODAL CORE ===== */
+function openModal(title,body,foot){closeModal();const bg=document.createElement('div');bg.className='modal-bg';bg.onclick=e=>{if(e.target===bg)closeModal();};
+ bg.innerHTML=`<div class="modal"><div class="modal-head"><h3>${title}</h3><button class="x" onclick="closeModal()">×</button></div><div class="modal-body">${body}</div>${foot?`<div class="modal-foot">${foot}</div>`:''}</div>`;
+ document.body.appendChild(bg);document._modal=bg;}
+function closeModal(){if(document._modal){document._modal.remove();document._modal=null;}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+load();
+</script>
+</body>
+</html>
