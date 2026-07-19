@@ -134,7 +134,17 @@ main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
 .cal-cell .add-day{position:absolute;top:5px;right:5px;opacity:0;border:none;background:var(--pink);color:var(--navy);width:20px;height:20px;border-radius:50%;font-size:13px;font-weight:700;padding:0;line-height:1;display:flex;align-items:center;justify-content:center;}
 .cal-cell:hover .add-day{opacity:1;}
 .cal-box{border-radius:8px;padding:4px 7px;margin-bottom:4px;cursor:pointer;border:1px solid rgba(0,0,0,.05);}
-.cal-box.pdrag{opacity:.35;}
+.cal-box.pdrag{opacity:.5;outline:2px solid var(--pink-strong);outline-offset:1px;}
+.cal-box.drop-here{box-shadow:0 -3px 0 var(--pink-strong);}
+.sheet tr.person.pdrag td{opacity:.5;background:var(--pink-light) !important;}
+.sheet tr.person.drop-here td{box-shadow:inset 0 3px 0 var(--pink-strong);}
+.memo-btn{border:none;background:transparent;font-size:14px;opacity:.4;cursor:pointer;padding:2px 4px;}
+.memo-btn.has{opacity:1;}
+.memo-pop{position:fixed;z-index:300;width:250px;background:#FFF9C4;border:1px solid #E6D875;border-radius:12px;box-shadow:var(--shadow);padding:11px;}
+.memo-pop .memo-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:#7a6a12;margin-bottom:7px;}
+.memo-pop .memo-head button{border:none;background:transparent;font-size:16px;cursor:pointer;color:#7a6a12;padding:0 2px;}
+.memo-pop textarea{width:100%;border:1px solid #E6D875;border-radius:8px;padding:8px;font-size:13px;background:#FFFEF2;resize:none;overflow:hidden;min-height:60px;outline:none;font-family:inherit;}
+.memo-pop .memo-foot{display:flex;justify-content:flex-end;margin-top:8px;}
 .cal-box.st-none{background:var(--st-none);}
 .cal-box.st-first{background:var(--st-first);}
 .cal-box.st-both{background:var(--st-both);border-color:var(--line);}
@@ -363,11 +373,11 @@ const FIELDS={
  note:{label:'비고',type:'area'},
  payType:{label:'급여유형',type:'pay',options:['연봉제','월급제'],badge:'gray'},
  salary:{label:'연봉',type:'salary',sensitive:1},
- extraSalary:{label:'계약 외 연봉',type:'salary',sensitive:1},
+ extraSalary:{label:'계약 외 연봉',type:'area'},
  healthDependent:{label:'건강보험 피부양자',type:'area'},
  bank:{label:'은행',type:'text'},
  account:{label:'계좌번호',type:'text',sensitive:1},
- accountHolder:{label:'예금주',type:'text'},
+ accountHolder:{label:'예금주',type:'holder'},
  marriage:{label:'혼인 여부',type:'chips',options:['O','X'],badge:'gray'},
  children:{label:'자녀 유무',type:'chips',options:['O','X'],badge:'gray'},
  education:{label:'최종학력',type:'text'},
@@ -459,12 +469,13 @@ function startApp(){
  dataUnsub=DATA_DOC.onSnapshot(snap=>{
    if(snap.exists)state=normState(snap.data());else{state=normState({});DATA_DOC.set(state);}
    renderNav();
-   if(!document._modal)rerenderCurrent();
+   if(!document._modal&&!isEditingField())rerenderCurrent();
    if(first){first=false;const purged=purgeTrash();if(window._freshLogin){window._freshLogin=false;log('login','','접속');save();}else if(purged)save();}
  },err=>toast('동기화 오류: '+(err.code||err.message)));
  renderNav();go('home');
 }
 function rerenderCurrent(){const v=document.getElementById('view');if(curTab==='home')renderHome(v);else if(curTab==='info')renderInfo();else if(curTab==='alarm')renderAlarm(v);else if(curTab==='stats')renderStats(v);else if(curTab==='settings'&&settingsUnlocked)renderSettings(v);}
+function isEditingField(){const a=document.activeElement;return !!(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.tagName==='SELECT'||a.isContentEditable));}
 
 /* ===== NAV ===== */
 function renderNav(){
@@ -564,7 +575,7 @@ function renderComboList(kind){const val=(kind==='dept'?search.dept:search.type)
  el.innerHTML=(opts.length?opts.map(o=>`<div class="ci" onmousedown="pickCombo('${kind}','${esc(o).replace(/'/g,"\\'")}')">${esc(o)}</div>`).join(''):'<div class="none">일치 항목 없음 · 직접 입력됩니다</div>');}
 function onComboInput(kind,val){if(kind==='dept')search.dept=val;else search.type=val;renderComboList(kind);document.getElementById('cl_'+kind).classList.remove('hidden');updateResults();}
 function pickCombo(kind,val){if(kind==='dept')search.dept=val;else search.type=val;const inp=document.getElementById('flt_'+kind);if(inp)inp.value=val;document.getElementById('cl_'+kind).classList.add('hidden');updateResults();}
-document.addEventListener('mousedown',e=>{if(!e.target.closest('.combo'))document.querySelectorAll('.combo-list').forEach(l=>l.classList.add('hidden'));if(!e.target.closest('.field-menu-wrap')&&!e.target.closest('.fmenu'))document.querySelectorAll('.fmenu').forEach(m=>m.classList.add('hidden'));});
+document.addEventListener('mousedown',e=>{if(!e.target.closest('.combo'))document.querySelectorAll('.combo-list').forEach(l=>l.classList.add('hidden'));if(!e.target.closest('.field-menu-wrap')&&!e.target.closest('.fmenu'))document.querySelectorAll('.fmenu').forEach(m=>m.classList.add('hidden'));if(!e.target.closest('.memo-pop')&&!e.target.closest('.memo-btn'))closeRowMemo();});
 
 function filteredPeople(){let arr=state.people.slice();
  if(search.q){const q=search.q.toLowerCase();arr=arr.filter(p=>(p.name||'').toLowerCase().includes(q));}
@@ -587,12 +598,13 @@ function renderSheet(){
  const groups={};arr.forEach(p=>{const d=p.joinDate||'미정';(groups[d]=groups[d]||[]).push(p);});
  const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
  let rows='';
- dates.forEach(d=>{rows+=`<tr class="group"><td colspan="7">${fmtDateK(d)}<span class="cnt">${groups[d].length}명</span></td></tr>`;
-  groups[d].forEach(p=>{rows+=`<tr class="person ${statusClass(p)}" draggable="true" title="드래그해서 같은 날짜 안에서 순서 변경" onclick="openDetail('${p.id}')" ondragstart="pDragStart(event,'${p.id}')" ondragover="pDragOver(event)" ondrop="pDrop(event,'${p.id}')" ondragend="pDragEnd(event)">
+ dates.forEach(d=>{rows+=`<tr class="group"><td colspan="8">${fmtDateK(d)}<span class="cnt">${groups[d].length}명</span></td></tr>`;
+  groups[d].forEach(p=>{rows+=`<tr class="person ${statusClass(p)}" draggable="true" data-pid="${p.id}" title="드래그해서 같은 날짜 안에서 순서 변경" onclick="openDetail('${p.id}')" ondragstart="pDragStart(event,'${p.id}')" ondragover="pDragOver(event)" ondragleave="pDragLeave(event)" ondrop="pDrop(event,'${p.id}')" ondragend="pDragEnd(event)">
    <td class="name-cell">${esc(p.name)}<span class="mini-checks"><span class="${p.firstDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','firstDone',${p.firstDone?'false':'true'})">1차</span><span class="${p.secondDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','secondDone',${p.secondDone?'false':'true'})">2차</span></span></td>
    <td>${esc(p.joinDate||'')}</td><td>${esc(p.dept||'')}</td><td>${esc(p.rank||'')}</td>
-   <td>${esc(p.handover||'')}</td><td>${esc(p.orgLead||'')}</td><td>${esc(p.note||'')}</td></tr>`;});});
- body.innerHTML=`<div class="card"><table class="sheet"><thead><tr><th>이름</th><th>입사일</th><th>부서</th><th>직급/직책</th><th>인계자</th><th>조직장</th><th>비고</th></tr></thead><tbody>${rows||`<tr><td colspan=7><div class="empty">검색 결과가 없습니다.</div></td></tr>`}</tbody></table></div>`;
+   <td>${esc(p.handover||'')}</td><td>${esc(p.orgLead||'')}</td><td>${esc(p.note||'')}</td>
+   <td style="text-align:center"><button class="memo-btn ${p.rowMemo?'has':''}" title="${p.rowMemo?'메모 있음':'메모 추가'}" onclick="event.stopPropagation();openRowMemo(event,'${p.id}')">📝</button></td></tr>`;});});
+ body.innerHTML=`<div class="card"><table class="sheet"><thead><tr><th>이름</th><th>입사일</th><th>부서</th><th>직급/직책</th><th>인계자</th><th>조직장</th><th>비고</th><th style="width:40px">메모</th></tr></thead><tbody>${rows||`<tr><td colspan=8><div class="empty">검색 결과가 없습니다.</div></td></tr>`}</tbody></table></div>`;
 }
 
 /* CALENDAR */
@@ -611,7 +623,7 @@ function renderCalendar(){
  body.innerHTML=`<div class="cal-head"><button onclick="calMove(-1)">‹</button><h3>${y}년 ${m+1}월</h3><button onclick="calMove(1)">›</button></div>
   <div class="cal-grid">${['일','월','화','수','목','금','토'].map(w=>`<div class="cal-dow">${w}</div>`).join('')}${cells}</div>`;
 }
-function calBox(p){return `<div class="cal-box ${statusClass(p)}" draggable="true" onclick="openDetail('${p.id}')" ondragstart="pDragStart(event,'${p.id}')" ondragover="pDragOver(event)" ondrop="pDrop(event,'${p.id}')" ondragend="pDragEnd(event)">
+function calBox(p){return `<div class="cal-box ${statusClass(p)}" draggable="true" data-pid="${p.id}" onclick="openDetail('${p.id}')" ondragstart="pDragStart(event,'${p.id}')" ondragover="pDragOver(event)" ondragleave="pDragLeave(event)" ondrop="pDrop(event,'${p.id}')" ondragend="pDragEnd(event)">
   <div class="bname">${esc(p.name)}</div><div class="bdept">${esc(p.dept||'')}</div>
   <div class="bchecks" onclick="event.stopPropagation()">
    <label><input type="checkbox" ${p.firstDone?'checked':''} onchange="toggleCheck('${p.id}','firstDone',this.checked)">1차</label>
@@ -619,15 +631,26 @@ function calBox(p){return `<div class="cal-box ${statusClass(p)}" draggable="tru
   </div></div>`;}
 function calMove(n){calRef=new Date(calRef.getFullYear(),calRef.getMonth()+n,1);renderCalendar();}
 let pDragId=null;
-function pDragStart(e,id){pDragId=id;e.dataTransfer.effectAllowed='move';e.currentTarget.classList.add('pdrag');}
-function pDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';}
-function pDragEnd(e){e.currentTarget.classList.remove('pdrag');pDragId=null;}
-function pDrop(e,targetId){e.preventDefault();e.stopPropagation();if(!pDragId||pDragId===targetId){return;}
- const a=state.people;const from=a.findIndex(x=>x.id===pDragId);const to=a.findIndex(x=>x.id===targetId);
+function clearDragCls(){document.querySelectorAll('.drop-here').forEach(x=>x.classList.remove('drop-here'));document.querySelectorAll('.pdrag').forEach(x=>x.classList.remove('pdrag'));}
+function pDragStart(e,id){pDragId=id;e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',id);}catch(_){}e.currentTarget.classList.add('pdrag');}
+function pDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';const t=e.currentTarget;const a=state.people;const dg=a.find(x=>x.id===pDragId);const tg=a.find(x=>x.id===t.dataset.pid);document.querySelectorAll('.drop-here').forEach(x=>{if(x!==t)x.classList.remove('drop-here');});if(dg&&tg&&pDragId!==t.dataset.pid&&(dg.joinDate||'')===(tg.joinDate||''))t.classList.add('drop-here');}
+function pDragLeave(e){e.currentTarget.classList.remove('drop-here');}
+function pDragEnd(e){clearDragCls();pDragId=null;}
+function pDrop(e,targetId){e.preventDefault();e.stopPropagation();const dragId=pDragId;clearDragCls();if(!dragId||dragId===targetId){pDragId=null;return;}
+ const a=state.people;const from=a.findIndex(x=>x.id===dragId);const to=a.findIndex(x=>x.id===targetId);pDragId=null;
  if(from<0||to<0)return;
  if((a[from].joinDate||'')!==(a[to].joinDate||'')){toast('같은 입사일 안에서만 순서를 바꿀 수 있어요.');return;}
  const moved=a.splice(from,1)[0];const t=a.findIndex(x=>x.id===targetId);a.splice(t,0,moved);
  log('edit',moved.name,'순서 변경');save();updateResults();}
+function openRowMemo(e,id){closeRowMemo();const p=state.people.find(x=>x.id===id);if(!p)return;
+ const box=document.createElement('div');box.className='memo-pop';box.id='memoPop';
+ box.innerHTML=`<div class="memo-head"><span>📝 ${esc(p.name)}</span><button onclick="closeRowMemo()">×</button></div><textarea id="memoTa" class="grow-ta" oninput="autoGrow(this)" placeholder="메모를 입력하세요">${esc(p.rowMemo||'')}</textarea><div class="memo-foot"><button class="btn primary sm" onclick="saveRowMemo('${id}')">저장</button></div>`;
+ document.body.appendChild(box);
+ const cx=(e&&e.clientX)||120,cy=(e&&e.clientY)||120;
+ box.style.left=Math.max(8,Math.min(cx,window.innerWidth-262))+'px';box.style.top=Math.max(8,Math.min(cy+8,window.innerHeight-230))+'px';
+ const ta=document.getElementById('memoTa');autoGrow(ta);ta.focus();}
+function saveRowMemo(id){const p=state.people.find(x=>x.id===id);if(!p)return;p.rowMemo=document.getElementById('memoTa').value.trim();log('edit',p.name,'메모 수정');save();closeRowMemo();updateResults();}
+function closeRowMemo(){const b=document.getElementById('memoPop');if(b)b.remove();}
 function toggleCheck(id,key,val){const p=state.people.find(x=>x.id===id);if(!p)return;p[key]=val;log('edit',p.name,(key==='firstDone'?'1차 입력':'2차 입력')+' '+(val?'완료':'해제'));save();updateResults();renderNav();}
 function openDayModal(ds){const list=state.people.filter(p=>p.joinDate===ds);openModal(`${fmtDateK(ds)} 입사자 (${list.length}명)`,`<div>${list.map(p=>calBox(p)).join('')}</div>`,'');}
 
@@ -660,9 +683,14 @@ function viewVal(k,p){const meta=FIELDS[k];const v=p[k];
  if(meta.type==='salary')return maskVal(fmtSalary(v,p),meta.sensitive);
  if(meta.sensitive)return maskVal(v,1);
  const css=styleCss(p,k);
+ if(k==='career')return `<span style="${css}">${careerHtml(v)}</span>`;
  if(EMAILF.includes(k))return `<a href="mailto:${esc(v)}" class="email-link" style="${css}">${esc(v)}</a>`;
  return `<span style="${css}">${esc(v)}</span>`;
 }
+function careerHtml(v){const lines=String(v||'').split('\n').map(l=>l.trim()).filter(Boolean);if(!lines.length)return'';
+ const rows=lines.map(l=>{const m=l.match(/(\d{4}\.\d{1,2}\s*~\s*(?:\d{4}\.\d{1,2}|현재))\s*$/);if(m){return[l.slice(0,m.index).trim(),m[1].replace(/\s+/g,' ')];}return[l,''];});
+ if(!rows.some(r=>r[1]))return esc(v);
+ return `<div style="display:grid;grid-template-columns:auto auto;column-gap:20px;row-gap:4px;font-variant-numeric:tabular-nums;width:max-content;max-width:100%">${rows.map(r=>`<span>${esc(r[0])}</span><span style="color:var(--muted)">${esc(r[1])}</span>`).join('')}</div>`;}
 function toggleFieldMenu(k){const el=document.getElementById('fm_'+k);if(!el)return;const willOpen=el.classList.contains('hidden');document.querySelectorAll('.fmenu').forEach(m=>m.classList.add('hidden'));if(willOpen)el.classList.remove('hidden');}
 function editStyle(k,type,val){if(!curRecord.styles)curRecord.styles={};if(!curRecord.styles[k])curRecord.styles[k]={};if(curRecord.styles[k][type]===val)delete curRecord.styles[k][type];else curRecord.styles[k][type]=val;if(!curRecord.styles[k].hl&&!curRecord.styles[k].color)delete curRecord.styles[k];applyEditPreview(k);const m=document.getElementById('fm_'+k);if(m)m.classList.add('hidden');}
 function clearFieldStyle(k){if(curRecord.styles)delete curRecord.styles[k];applyEditPreview(k);const m=document.getElementById('fm_'+k);if(m)m.classList.add('hidden');}
@@ -689,8 +717,10 @@ function editControl(k,p){const meta=FIELDS[k];const v=esc(p[k]||'');
  if(meta.type==='chips')return `<div class="chip-group" id="cg_${k}">${meta.options.map(o=>`<button type="button" class="chip ${p[k]===o?'on':''}" onclick="pickChip(this,'${k}','${esc(o)}')">${esc(o)}</button>`).join('')}</div><input type="hidden" id="f_${k}" value="${v}">`;
  if(meta.type==='dept')return `<input id="f_${k}" list="deptList" value="${v}" placeholder="입력 시 저장됩니다"><datalist id="deptList">${state.departments.map(d=>`<option value="${esc(d)}">`).join('')}</datalist>`;
  if(meta.type==='contact')return `<input id="f_${k}" list="contactList" value="${v}" oninput="autofillEmail('${k}')" placeholder="저장된 이름 검색"><datalist id="contactList">${state.contacts.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>`;
+ if(meta.type==='holder')return `<input id="f_${k}" list="holderList" value="${v}" onfocus="syncHolderList()" placeholder="본인 이름 선택 가능"><datalist id="holderList"><option value="${esc(p.name||'')}"></datalist>`;
  return `<input id="f_${k}" value="${v}">`;
 }
+function syncHolderList(){const n=document.getElementById('f_name'),dl=document.getElementById('holderList');if(n&&dl)dl.innerHTML=`<option value="${esc(n.value)}"></option>`;}
 function statusBlock(p,mode){
  if(mode==='view')return `<div class="drow"><div class="k">1차 입력</div><div class="v">${p.firstDone?'<span class="badge navy">완료</span>':'<span class="badge gray">미완료</span>'}</div></div><div class="drow"><div class="k">2차 입력</div><div class="v">${p.secondDone?'<span class="badge navy">완료</span>':'<span class="badge gray">미완료</span>'}</div></div>`;
  return `<div class="chk"><label><input type="checkbox" id="f_firstDone" ${p.firstDone?'checked':''}>1차 입력 완료</label><label><input type="checkbox" id="f_secondDone" ${p.secondDone?'checked':''}>2차 입력 완료</label></div>`;
@@ -702,7 +732,7 @@ function autofillEmail(which){const nameEl=document.getElementById('f_'+which);c
 /* tips */
 function tipView(k){const t=getTip(k);return `<div class="tip-text">${t?esc(t):'<span style=color:#9aa6bd>등록된 TIP이 없습니다.</span>'}</div><div class="tip-actions"><button type="button" class="mini edit" onclick="editTip('${k}')">${t?'수정':'추가'}</button></div>`;}
 function toggleTip(k){document.getElementById('tip_'+k).classList.toggle('hidden');}
-function editTip(k){document.getElementById('tip_'+k).innerHTML=`<textarea id="tipEdit_${k}">${esc(getTip(k))}</textarea><div class="tip-actions"><button type="button" class="mini save" onclick="saveTip('${k}')">저장</button><button type="button" class="mini cancel" onclick="cancelTip('${k}')">취소</button></div>`;}
+function editTip(k){document.getElementById('tip_'+k).innerHTML=`<textarea id="tipEdit_${k}" class="grow-ta" oninput="autoGrow(this)">${esc(getTip(k))}</textarea><div class="tip-actions"><button type="button" class="mini save" onclick="saveTip('${k}')">저장</button><button type="button" class="mini cancel" onclick="cancelTip('${k}')">취소</button></div>`;const t=document.getElementById('tipEdit_'+k);if(t)autoGrow(t);}
 function saveTip(k){const val=document.getElementById('tipEdit_'+k).value;state.tips[k]=val;save();document.getElementById('tip_'+k).innerHTML=tipView(k);const b=document.getElementById('tipbtn_'+k);if(b)b.classList.toggle('has',!!val);toast('TIP이 저장되어 전체에 적용됩니다.');}
 function cancelTip(k){document.getElementById('tip_'+k).innerHTML=tipView(k);}
 
@@ -898,7 +928,7 @@ function doExport(){
  const cols=document.getElementById('ex_cols').value;const sens=document.getElementById('ex_sensitive').checked;let rows;
  if(cols==='summary'){rows=arr.map(p=>({'이름':p.name,'입사일':p.joinDate,'부서':p.dept,'직급/직책':p.rank,'인계자':p.handover,'조직장':p.orgLead,'비고':p.note}));}
  else{rows=arr.map(p=>{const o={'이름':p.name,'입사일':p.joinDate,'부서':p.dept,'직급/직책':p.rank,'입사구분':p.joinType,'정규직여부':p.empStatus,'국적':p.nationality,'인계자':p.handover,'인계자이메일':p.handoverEmail,'조직장':p.orgLead,'조직장이메일':p.orgLeadEmail,'비고':p.note,'급여유형':p.payType,'건강보험피부양자':p.healthDependent,'은행':p.bank,'예금주':p.accountHolder,'혼인여부':p.marriage,'자녀유무':p.children,'최종학력':p.education,'학교/전공':p.school,'경력사항':p.career,'내부관리메모':p.internalMemo,'1차입력':p.firstDone?'완료':'','2차입력':p.secondDone?'완료':''};
-   if(sens){o['연봉']=fmtSalary(p.salary,p);o['계약외연봉']=fmtSalary(p.extraSalary,p);o['계좌번호']=p.account;}return o;});}
+   if(sens){o['연봉']=fmtSalary(p.salary,p);o['계약외연봉']=p.extraSalary;o['계좌번호']=p.account;}return o;});}
  const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'신규입사자');
  XLSX.writeFile(wb,'신규입사자_'+ymd(new Date())+'.xlsx');closeModal();toast('엑셀 파일이 저장되었습니다.');
 }
