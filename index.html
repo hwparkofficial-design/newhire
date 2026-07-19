@@ -233,6 +233,9 @@ main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
 .list-row .lsub{color:var(--muted);font-size:12px;}
 .list-row.drag{cursor:grab;}
 .list-row.dragging{opacity:.4;}
+.list-row.drop-here{box-shadow:inset 0 3px 0 var(--pink-strong);}
+.mem-ava{width:30px;height:30px;border-radius:50%;background:#E9ECF2;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.mem-ava.admin{background:var(--pink);color:var(--navy);}
 .list-row .handle{color:#c2c8d6;font-size:16px;cursor:grab;user-select:none;}
 .dept-group-head{background:var(--navy);color:#fff;font-weight:700;font-size:12px;padding:8px 16px;}
 .dept-group-head .c{color:var(--pink);margin-left:8px;font-size:11px;}
@@ -298,7 +301,7 @@ main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
     <h1>신규입사자 일정관리 시스템</h1>
     <p class="upper">SM Entertainment 인사 Unit</p>
     <div id="loginBody">
-      <button onclick="googleLogin()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#fff;color:#1F2A4E;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;"><span style="font-weight:800;color:#EA4335;font-family:Poppins,sans-serif;">G</span> Google로 로그인</button>
+      <button onclick="googleLogin()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#fff;color:#1F2A4E;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;">Google로 로그인</button>
       <div class="login-err" id="loginErr"></div>
       <div style="color:#8892ad;font-size:12px;margin-top:14px;">허용된 구글 계정만 접속할 수 있어요.</div>
     </div>
@@ -426,6 +429,7 @@ function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'
 function relTime(ts){const s=(Date.now()-ts)/1000;if(s<60)return'방금 전';if(s<3600)return Math.floor(s/60)+'분 전';if(s<86400)return Math.floor(s/3600)+'시간 전';return Math.floor(s/86400)+'일 전';}
 function payUnit(p){return p.payType==='월급제'?'원/月':(p.payType==='연봉제'?'원':'');}
 function formatComma(v){const d=String(v==null?'':v).replace(/[^0-9]/g,'');return d?d.replace(/\B(?=(\d{3})+(?!\d))/g,','):'';}
+function commaInput(el){const oldVal=el.value,sel=el.selectionStart||0;const digitsBefore=oldVal.slice(0,sel).replace(/[^0-9]/g,'').length;const formatted=formatComma(oldVal);el.value=formatted;if(digitsBefore===0){el.setSelectionRange(0,0);return;}let cnt=0,pos=formatted.length;for(let i=0;i<formatted.length;i++){if(formatted[i]>='0'&&formatted[i]<='9'){cnt++;if(cnt===digitsBefore){pos=i+1;break;}}}el.setSelectionRange(pos,pos);}
 function fmtSalary(v,p){if(!v)return'';const u=payUnit(p);return formatComma(v)+(u?' '+u:'');}
 function fmtDateK(d){if(d==='미정')return'입사일 미정';const dt=new Date(d+'T00:00');const wd=['일','월','화','수','목','금','토'][dt.getDay()];return `${d} (${wd})`;}
 function autoGrow(el){el.style.height='auto';el.style.height=(el.scrollHeight+2)+'px';}
@@ -438,7 +442,7 @@ function diffPerson(o,n){const c=[];for(const k in FIELDS){if((o[k]||'')!==(n[k]
 function googleLogin(){const err=document.getElementById('loginErr');if(err)err.textContent='';const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});window._freshLogin=true;auth.signInWithPopup(p).catch(e=>{const el=document.getElementById('loginErr');if(el)el.textContent='로그인 실패: '+(e.code||e.message);});}
 function logout(){if(dataUnsub){dataUnsub();dataUnsub=null;}settingsUnlocked=false;session={email:null,name:null,isAdmin:false};auth.signOut();}
 function showLogin(){document.getElementById('app').style.display='none';const l=document.getElementById('login');l.style.display='flex';
- document.getElementById('loginBody').innerHTML=`<button onclick="googleLogin()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#fff;color:#1F2A4E;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;"><span style="font-weight:800;color:#EA4335;font-family:Poppins,sans-serif;">G</span> Google로 로그인</button><div class="login-err" id="loginErr"></div><div style="color:#8892ad;font-size:12px;margin-top:14px;">허용된 구글 계정만 접속할 수 있어요.</div>`;}
+ document.getElementById('loginBody').innerHTML=`<button onclick="googleLogin()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#fff;color:#1F2A4E;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;">Google로 로그인</button><div class="login-err" id="loginErr"></div><div style="color:#8892ad;font-size:12px;margin-top:14px;">허용된 구글 계정만 접속할 수 있어요.</div>`;}
 function showNoAccess(user){document.getElementById('app').style.display='none';const l=document.getElementById('login');l.style.display='flex';
  document.getElementById('loginBody').innerHTML=`<div style="color:#ff9db0;font-size:13px;margin-bottom:16px;line-height:1.5">이 계정은 접근 권한이 없습니다.<br><b>${esc(user.email||'')}</b><br>관리자에게 허용 명단 추가를 요청하세요.</div><button onclick="logout()" style="width:100%;padding:12px;border:1px solid #3a4676;border-radius:10px;background:transparent;color:#c3cade;font-size:13px;cursor:pointer;">다른 계정으로 로그인</button>`;}
 auth.onAuthStateChanged(async user=>{
@@ -603,7 +607,7 @@ function renderSheet(){
    <td class="name-cell">${esc(p.name)}<span class="mini-checks"><span class="${p.firstDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','firstDone',${p.firstDone?'false':'true'})">1차</span><span class="${p.secondDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','secondDone',${p.secondDone?'false':'true'})">2차</span></span></td>
    <td>${esc(p.joinDate||'')}</td><td>${esc(p.dept||'')}</td><td>${esc(p.rank||'')}</td>
    <td>${esc(p.handover||'')}</td><td>${esc(p.orgLead||'')}</td><td>${esc(p.note||'')}</td>
-   <td style="text-align:center"><button class="memo-btn ${p.rowMemo?'has':''}" title="${p.rowMemo?'메모 있음':'메모 추가'}" onclick="event.stopPropagation();openRowMemo(event,'${p.id}')">📝</button></td></tr>`;});});
+   <td style="text-align:center"><button class="memo-btn ${p.rowMemo?'has':''}" title="${p.rowMemo?'메모 있음':'메모 추가'}" onclick="event.stopPropagation();openRowMemo(event,'${p.id}')">${p.rowMemo?'📝':'📄'}</button></td></tr>`;});});
  body.innerHTML=`<div class="card"><table class="sheet"><thead><tr><th>이름</th><th>입사일</th><th>부서</th><th>직급/직책</th><th>인계자</th><th>조직장</th><th>비고</th><th style="width:40px">메모</th></tr></thead><tbody>${rows||`<tr><td colspan=8><div class="empty">검색 결과가 없습니다.</div></td></tr>`}</tbody></table></div>`;
 }
 
@@ -713,7 +717,7 @@ function editControl(k,p){const meta=FIELDS[k];const v=esc(p[k]||'');
  if(meta.type==='area')return `<textarea id="f_${k}" class="grow-ta" oninput="autoGrow(this)">${v}</textarea>`;
  if(meta.type==='select')return `<select id="f_${k}">${meta.options.map(o=>`<option ${((p[k]||'대한민국')===o)?'selected':''}>${o}</option>`).join('')}</select>`;
  if(meta.type==='pay')return `<select id="f_${k}" onchange="updatePayUnit()"><option value="">선택</option>${meta.options.map(o=>`<option ${p[k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
- if(meta.type==='salary')return `<div class="salary-wrap"><input id="f_${k}" value="${formatComma(p[k]||'')}" inputmode="numeric" oninput="this.value=formatComma(this.value)"><span class="unit" id="unit_${k}"></span></div>`;
+ if(meta.type==='salary')return `<div class="salary-wrap"><input id="f_${k}" value="${formatComma(p[k]||'')}" inputmode="numeric" oninput="commaInput(this)"><span class="unit" id="unit_${k}"></span></div>`;
  if(meta.type==='chips')return `<div class="chip-group" id="cg_${k}">${meta.options.map(o=>`<button type="button" class="chip ${p[k]===o?'on':''}" onclick="pickChip(this,'${k}','${esc(o)}')">${esc(o)}</button>`).join('')}</div><input type="hidden" id="f_${k}" value="${v}">`;
  if(meta.type==='dept')return `<input id="f_${k}" list="deptList" value="${v}" placeholder="입력 시 저장됩니다"><datalist id="deptList">${state.departments.map(d=>`<option value="${esc(d)}">`).join('')}</datalist>`;
  if(meta.type==='contact')return `<input id="f_${k}" list="contactList" value="${v}" oninput="autofillEmail('${k}')" placeholder="저장된 이름 검색"><datalist id="contactList">${state.contacts.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>`;
@@ -884,9 +888,28 @@ function renderSettings(v){
  </div>`;
 }
 function memberRows(){if(!accessCache.members.length)return'<div class="empty">명단이 비어 있습니다.</div>';
- return accessCache.members.slice().sort((a,b)=>(b.admin?1:0)-(a.admin?1:0)).map(m=>{const adm=!!m.admin;const e=esc(m.email).replace(/'/g,"\\'");return `<div class="list-row">
+ return accessCache.members.map(m=>{const adm=!!m.admin;const e=esc(m.email).replace(/'/g,"\\'");const ini=esc(((m.name||m.email||'?').trim()[0]||'?').toUpperCase());
+  return `<div class="list-row ${session.isAdmin?'drag':''}" draggable="${session.isAdmin?'true':'false'}" data-mid="${esc(m.email)}" ${session.isAdmin?`ondragstart="mDragStart(event,'${e}')" ondragover="mDragOver(event)" ondragleave="mDragLeave(event)" ondrop="mDrop(event,'${e}')" ondragend="mDragEnd(event)"`:''}>
+   ${session.isAdmin?'<span class="handle">⠿</span>':''}
+   <span class="mem-ava ${adm?'admin':''}">${ini}</span>
    <div class="grow"><div class="lname">${esc(m.name||'')} ${adm?'<span class="badge pink" style="margin-left:4px">관리자</span>':''}</div><div class="lsub">${esc(m.email)}</div></div>
-   ${session.isAdmin?`<button class="btn ghost sm" onclick="toggleAdmin('${e}')">${adm?'관리자 해제':'관리자 지정'}</button><button class="btn ghost sm" onclick="removeMember('${e}')">삭제</button>`:''}</div>`;}).join('');}
+   ${session.isAdmin?`<button class="btn ghost sm" onclick="toggleAdmin('${e}')">${adm?'관리자 해제':'관리자 지정'}</button><button class="btn ghost sm" onclick="editMember('${e}')">수정</button><button class="btn ghost sm" onclick="removeMember('${e}')">삭제</button>`:''}</div>`;}).join('');}
+function editMember(email){const m=accessCache.members.find(x=>(x.email||'').toLowerCase()===email.toLowerCase());if(!m)return;
+ openModal('명단 수정',`<div class="field"><label>이름</label><input id="em_name" value="${esc(m.name||'')}"></div><div class="field"><label>구글 이메일</label><input id="em_email" value="${esc(m.email||'')}"></div>`,`<button class="btn ghost" onclick="closeModal()">취소</button><button class="btn primary" onclick="saveMemberEdit('${esc(email).replace(/'/g,"\\'")}')">저장</button>`);}
+function saveMemberEdit(oldEmail){const m=accessCache.members.find(x=>(x.email||'').toLowerCase()===oldEmail.toLowerCase());if(!m)return;const name=document.getElementById('em_name').value.trim();const email=document.getElementById('em_email').value.trim().toLowerCase();
+ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('올바른 이메일을 입력하세요.');return;}
+ if(email!==oldEmail.toLowerCase()&&accessCache.members.some(x=>(x.email||'').toLowerCase()===email)){toast('이미 명단에 있는 이메일입니다.');return;}
+ m.name=name||email;m.email=email;
+ saveAccess().then(()=>{log('edit','접근 명단',`${name||email} 정보 수정`);save();closeModal();renderSettings(document.getElementById('view'));toast('수정되었습니다.');}).catch(er=>toast('저장 오류: '+(er.code||er.message)));}
+let mDragEmail=null;
+function mClear(){document.querySelectorAll('#memberRows .drop-here').forEach(x=>x.classList.remove('drop-here'));document.querySelectorAll('#memberRows .dragging').forEach(x=>x.classList.remove('dragging'));}
+function mDragStart(e,email){mDragEmail=email;e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',email);}catch(_){}e.currentTarget.classList.add('dragging');}
+function mDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';const t=e.currentTarget;document.querySelectorAll('#memberRows .drop-here').forEach(x=>{if(x!==t)x.classList.remove('drop-here');});if(t.dataset.mid&&t.dataset.mid.toLowerCase()!==(mDragEmail||'').toLowerCase())t.classList.add('drop-here');}
+function mDragLeave(e){e.currentTarget.classList.remove('drop-here');}
+function mDragEnd(e){mClear();mDragEmail=null;}
+function mDrop(e,targetEmail){e.preventDefault();const dg=mDragEmail;mClear();mDragEmail=null;if(!dg||dg.toLowerCase()===targetEmail.toLowerCase())return;
+ const a=accessCache.members;const from=a.findIndex(x=>(x.email||'').toLowerCase()===dg.toLowerCase());if(from<0)return;const moved=a.splice(from,1)[0];const t=a.findIndex(x=>(x.email||'').toLowerCase()===targetEmail.toLowerCase());a.splice(t<0?a.length:t,0,moved);
+ saveAccess().then(()=>{save();document.getElementById('memberRows').innerHTML=memberRows();}).catch(er=>toast('저장 오류: '+(er.code||er.message)));}
 function refreshAccessArrays(){accessCache.emails=accessCache.members.map(m=>(m.email||'').toLowerCase());accessCache.admins=accessCache.members.filter(m=>m.admin).map(m=>(m.email||'').toLowerCase());session.isAdmin=accessCache.admins.includes(session.email);}
 function saveAccess(){refreshAccessArrays();return ACCESS_DOC.set(accessCache);}
 function addMember(){const name=document.getElementById('am_name').value.trim();const email=document.getElementById('am_email').value.trim().toLowerCase();
