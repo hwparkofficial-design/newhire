@@ -106,7 +106,8 @@ main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
 .sheet th{background:#fafbfd;text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:12px 14px;border-bottom:1px solid var(--line);}
 .sheet td{padding:12px 14px;border-bottom:1px solid #eef1f6;font-size:13px;}
 .sheet tr.person{cursor:pointer;}
-.sheet tr.person:hover td{background:rgba(244,183,206,.14) !important;}
+.sheet tr.person.pdrag td{opacity:.35;}
+.sheet tr.person:hover td{}
 .sheet tr.st-none td{background:var(--st-none);}
 .sheet tr.st-first td{background:var(--st-first);}
 .sheet tr.st-both td{background:var(--st-both);}
@@ -133,6 +134,7 @@ main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
 .cal-cell .add-day{position:absolute;top:5px;right:5px;opacity:0;border:none;background:var(--pink);color:var(--navy);width:20px;height:20px;border-radius:50%;font-size:13px;font-weight:700;padding:0;line-height:1;display:flex;align-items:center;justify-content:center;}
 .cal-cell:hover .add-day{opacity:1;}
 .cal-box{border-radius:8px;padding:4px 7px;margin-bottom:4px;cursor:pointer;border:1px solid rgba(0,0,0,.05);}
+.cal-box.pdrag{opacity:.35;}
 .cal-box.st-none{background:var(--st-none);}
 .cal-box.st-first{background:var(--st-first);}
 .cal-box.st-both{background:var(--st-both);border-color:var(--line);}
@@ -266,7 +268,16 @@ main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
 
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 22px;border-radius:24px;font-size:13px;z-index:500;box-shadow:var(--shadow);opacity:0;transition:.3s;pointer-events:none;}
 .toast.show{opacity:1;}
-@media(max-width:760px){.sidebar{width:66px;}.sidebar .brand .t,.sidebar nav button.navi span.lbl{display:none;}}
+@media(max-width:760px){
+  .sidebar{width:64px;padding:18px 6px;}
+  .sidebar .brand{justify-content:center;padding:0 0 16px;gap:0;}
+  .sidebar .brand .t{display:none;}
+  .sidebar .brand img{height:24px !important;width:auto !important;max-width:100%;}
+  .sidebar nav button.navi{justify-content:center;padding:11px 0;gap:0;}
+  .sidebar nav button.navi span.lbl{display:none;}
+  .sidebar nav .subnav{margin-left:0;padding-left:0;border-left:none;align-items:center;}
+  .sidebar nav .subnav button{text-align:center;padding:8px 0;}
+}
 </style>
 </head>
 <body>
@@ -315,6 +326,7 @@ const BOOTSTRAP_ADMIN='hyewon.park@smtown.com';
 const firebaseConfig={apiKey:"AIzaSyDjLMzBK1JIiz-zBgPOb7cQyVZ5vT10ZkI",authDomain:"new-hire-68bc3.firebaseapp.com",projectId:"new-hire-68bc3",storageBucket:"new-hire-68bc3.firebasestorage.app",messagingSenderId:"91639456384",appId:"1:91639456384:web:49f94ec98c9d3a79d97c65"};
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth();
+auth.setPersistence(firebase.auth.Auth.Persistence.NONE).catch(()=>{});
 const db=firebase.firestore();
 const DATA_DOC=db.collection('app').doc('data');
 const ACCESS_DOC=db.collection('app').doc('access');
@@ -328,7 +340,8 @@ let search={q:'',dept:'',type:'',jY:'',jM:'',jD:'',jDate:'',extra:[]};
 let alarmFolder='all';
 let curRecord=null;
 
-function normState(d){d=d||{};return {people:d.people||[],departments:d.departments||[],contacts:d.contacts||[],logs:d.logs||[],logFolders:d.logFolders||[],tips:d.tips||{},settings:Object.assign({deleteConfirm:true,dupDetect:true,maskSensitive:true},d.settings||{})};}
+function normState(d){d=d||{};return {people:d.people||[],departments:d.departments||[],contacts:d.contacts||[],logs:d.logs||[],logFolders:d.logFolders||[],tips:d.tips||{},trash:d.trash||[],settings:Object.assign({deleteConfirm:true,dupDetect:true,maskSensitive:true},d.settings||{})};}
+function purgeTrash(){if(!state.trash||!state.trash.length)return false;const cut=Date.now()-30*24*3600*1000;const before=state.trash.length;state.trash=state.trash.filter(t=>(t.deletedAt||0)>cut);return state.trash.length!==before;}
 function save(){DATA_DOC.set(state).catch(e=>toast('저장 오류 — 인터넷 연결을 확인하세요.'));}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
@@ -412,7 +425,7 @@ function log(action,target,detail){state.logs.unshift({id:uid(),ts:Date.now(),ed
 function diffPerson(o,n){const c=[];for(const k in FIELDS){if((o[k]||'')!==(n[k]||''))c.push(FIELDS[k].label);}['firstDone','secondDone'].forEach(k=>{if((o[k]||false)!==(n[k]||false))c.push(k==='firstDone'?'1차입력':'2차입력');});return c;}
 
 /* ===== AUTH (Google login + Firestore realtime) ===== */
-function googleLogin(){const err=document.getElementById('loginErr');if(err)err.textContent='';const p=new firebase.auth.GoogleAuthProvider();window._freshLogin=true;auth.signInWithPopup(p).catch(e=>{const el=document.getElementById('loginErr');if(el)el.textContent='로그인 실패: '+(e.code||e.message);});}
+function googleLogin(){const err=document.getElementById('loginErr');if(err)err.textContent='';const p=new firebase.auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});window._freshLogin=true;auth.signInWithPopup(p).catch(e=>{const el=document.getElementById('loginErr');if(el)el.textContent='로그인 실패: '+(e.code||e.message);});}
 function logout(){if(dataUnsub){dataUnsub();dataUnsub=null;}settingsUnlocked=false;session={email:null,name:null,isAdmin:false};auth.signOut();}
 function showLogin(){document.getElementById('app').style.display='none';const l=document.getElementById('login');l.style.display='flex';
  document.getElementById('loginBody').innerHTML=`<button onclick="googleLogin()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#fff;color:#1F2A4E;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;"><span style="font-weight:800;color:#EA4335;font-family:Poppins,sans-serif;">G</span> Google로 로그인</button><div class="login-err" id="loginErr"></div><div style="color:#8892ad;font-size:12px;margin-top:14px;">허용된 구글 계정만 접속할 수 있어요.</div>`;}
@@ -447,7 +460,7 @@ function startApp(){
    if(snap.exists)state=normState(snap.data());else{state=normState({});DATA_DOC.set(state);}
    renderNav();
    if(!document._modal)rerenderCurrent();
-   if(first){first=false;if(window._freshLogin){window._freshLogin=false;log('login','','접속');save();}}
+   if(first){first=false;const purged=purgeTrash();if(window._freshLogin){window._freshLogin=false;log('login','','접속');save();}else if(purged)save();}
  },err=>toast('동기화 오류: '+(err.code||err.message)));
  renderNav();go('home');
 }
@@ -575,7 +588,7 @@ function renderSheet(){
  const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
  let rows='';
  dates.forEach(d=>{rows+=`<tr class="group"><td colspan="7">${fmtDateK(d)}<span class="cnt">${groups[d].length}명</span></td></tr>`;
-  groups[d].forEach(p=>{rows+=`<tr class="person ${statusClass(p)}" onclick="openDetail('${p.id}')">
+  groups[d].forEach(p=>{rows+=`<tr class="person ${statusClass(p)}" draggable="true" title="드래그해서 같은 날짜 안에서 순서 변경" onclick="openDetail('${p.id}')" ondragstart="pDragStart(event,'${p.id}')" ondragover="pDragOver(event)" ondrop="pDrop(event,'${p.id}')" ondragend="pDragEnd(event)">
    <td class="name-cell">${esc(p.name)}<span class="mini-checks"><span class="${p.firstDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','firstDone',${p.firstDone?'false':'true'})">1차</span><span class="${p.secondDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','secondDone',${p.secondDone?'false':'true'})">2차</span></span></td>
    <td>${esc(p.joinDate||'')}</td><td>${esc(p.dept||'')}</td><td>${esc(p.rank||'')}</td>
    <td>${esc(p.handover||'')}</td><td>${esc(p.orgLead||'')}</td><td>${esc(p.note||'')}</td></tr>`;});});
@@ -598,13 +611,23 @@ function renderCalendar(){
  body.innerHTML=`<div class="cal-head"><button onclick="calMove(-1)">‹</button><h3>${y}년 ${m+1}월</h3><button onclick="calMove(1)">›</button></div>
   <div class="cal-grid">${['일','월','화','수','목','금','토'].map(w=>`<div class="cal-dow">${w}</div>`).join('')}${cells}</div>`;
 }
-function calBox(p){return `<div class="cal-box ${statusClass(p)}" onclick="openDetail('${p.id}')">
+function calBox(p){return `<div class="cal-box ${statusClass(p)}" draggable="true" onclick="openDetail('${p.id}')" ondragstart="pDragStart(event,'${p.id}')" ondragover="pDragOver(event)" ondrop="pDrop(event,'${p.id}')" ondragend="pDragEnd(event)">
   <div class="bname">${esc(p.name)}</div><div class="bdept">${esc(p.dept||'')}</div>
   <div class="bchecks" onclick="event.stopPropagation()">
    <label><input type="checkbox" ${p.firstDone?'checked':''} onchange="toggleCheck('${p.id}','firstDone',this.checked)">1차</label>
    <label><input type="checkbox" ${p.secondDone?'checked':''} onchange="toggleCheck('${p.id}','secondDone',this.checked)">2차</label>
   </div></div>`;}
 function calMove(n){calRef=new Date(calRef.getFullYear(),calRef.getMonth()+n,1);renderCalendar();}
+let pDragId=null;
+function pDragStart(e,id){pDragId=id;e.dataTransfer.effectAllowed='move';e.currentTarget.classList.add('pdrag');}
+function pDragOver(e){e.preventDefault();e.dataTransfer.dropEffect='move';}
+function pDragEnd(e){e.currentTarget.classList.remove('pdrag');pDragId=null;}
+function pDrop(e,targetId){e.preventDefault();e.stopPropagation();if(!pDragId||pDragId===targetId){return;}
+ const a=state.people;const from=a.findIndex(x=>x.id===pDragId);const to=a.findIndex(x=>x.id===targetId);
+ if(from<0||to<0)return;
+ if((a[from].joinDate||'')!==(a[to].joinDate||'')){toast('같은 입사일 안에서만 순서를 바꿀 수 있어요.');return;}
+ const moved=a.splice(from,1)[0];const t=a.findIndex(x=>x.id===targetId);a.splice(t,0,moved);
+ log('edit',moved.name,'순서 변경');save();updateResults();}
 function toggleCheck(id,key,val){const p=state.people.find(x=>x.id===id);if(!p)return;p[key]=val;log('edit',p.name,(key==='firstDone'?'1차 입력':'2차 입력')+' '+(val?'완료':'해제'));save();updateResults();renderNav();}
 function openDayModal(ds){const list=state.people.filter(p=>p.joinDate===ds);openModal(`${fmtDateK(ds)} 입사자 (${list.length}명)`,`<div>${list.map(p=>calBox(p)).join('')}</div>`,'');}
 
@@ -701,8 +724,16 @@ function saveRecord(editId){const g=k=>{const el=document.getElementById('f_'+k)
 }
 function saveContact(name,email,dept){if(!name)return;const i=state.contacts.findIndex(c=>c.name===name);if(i>=0){if(email)state.contacts[i].email=email;if(dept&&!state.contacts[i].dept)state.contacts[i].dept=dept;}else state.contacts.push({id:uid(),name,email:email||'',dept:dept||''});}
 function delPerson(id){const p=state.people.find(x=>x.id===id);if(!p)return;
- if(state.settings.deleteConfirm && !confirm(`'${p.name}' 님의 정보를 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`))return;
- state.people=state.people.filter(x=>x.id!==id);log('del',p.name,`입사일 ${p.joinDate} 정보 삭제`);save();closeModal();toast('삭제되었습니다.');go('home');}
+ if(state.settings.deleteConfirm && !confirm(`'${p.name}' 님의 정보를 삭제할까요?\n휴지통에 30일간 보관되며, 이후 완전 삭제됩니다.`))return;
+ state.people=state.people.filter(x=>x.id!==id);
+ state.trash=state.trash||[];state.trash.unshift(Object.assign({},p,{deletedAt:Date.now(),deletedBy:session.name}));
+ log('del',p.name,`입사일 ${p.joinDate} → 휴지통 이동 (30일 보관)`);save();closeModal();toast('휴지통으로 이동했습니다.');go('home');}
+function trashRows(){if(!state.trash||!state.trash.length)return'<div class="empty" style="padding:24px">휴지통이 비어 있습니다.</div>';
+ const now=Date.now();return state.trash.slice().sort((a,b)=>(b.deletedAt||0)-(a.deletedAt||0)).map(t=>{const days=Math.max(0,30-Math.floor((now-(t.deletedAt||now))/(24*3600*1000)));const e=esc(t.id);return `<div class="list-row">
+   <div class="grow"><div class="lname">${esc(t.name||'')}</div><div class="lsub">입사일 ${esc(t.joinDate||'')} · 삭제 ${t.deletedAt?new Date(t.deletedAt).toLocaleDateString('ko-KR'):''} · <b style="color:#E24B4A">${days}일 후 완전 삭제</b>${t.deletedBy?' · '+esc(t.deletedBy):''}</div></div>
+   <button class="btn ghost sm" onclick="restoreTrash('${e}')">복원</button><button class="btn ghost sm" onclick="purgeOne('${e}')">완전 삭제</button></div>`;}).join('');}
+function restoreTrash(id){const i=(state.trash||[]).findIndex(t=>t.id===id);if(i<0)return;const t=state.trash.splice(i,1)[0];delete t.deletedAt;delete t.deletedBy;state.people.push(t);log('add',t.name,'휴지통에서 복원');save();renderSettings(document.getElementById('view'));toast('복원되었습니다.');}
+function purgeOne(id){const t=(state.trash||[]).find(x=>x.id===id);if(!t)return;if(!confirm(`'${t.name}' 님을 완전히 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`))return;state.trash=state.trash.filter(x=>x.id!==id);log('del',t.name,'휴지통에서 완전 삭제');save();renderSettings(document.getElementById('view'));toast('완전 삭제되었습니다.');}
 
 /* ===== INFO ===== */
 function renderInfo(){const v=document.getElementById('view');if(infoSub==='email')renderEmail(v);else renderDept(v);window.scrollTo(0,0);}
@@ -812,6 +843,10 @@ function renderSettings(v){
      <button class="btn primary sm" onclick="backupExport()">내보내기</button></div>
    <div class="set-item"><div><div class="st-t">📂 데이터 백업 가져오기</div><div class="st-d">백업 파일(.json)로 전체 데이터를 복원합니다. (기존 로컬 데이터를 클라우드로 옮길 때 사용)</div></div>
      <label class="btn ghost sm" style="cursor:pointer">가져오기<input type="file" accept=".json" style="display:none" onchange="backupImport(this)"></label></div>
+ </div>
+ <div class="set-block">
+   <div class="set-item"><div><div class="st-t">🗑️ 휴지통 <span class="count-pill">${(state.trash||[]).length}개</span></div><div class="st-d">삭제한 입사자는 30일간 보관되며, 이후 자동으로 완전 삭제됩니다. 그 전엔 복원할 수 있어요.</div></div></div>
+   <div id="trashRows">${trashRows()}</div>
  </div>
  <div class="set-block">
    <div class="set-item"><div><div class="st-t">현재 로그인</div><div class="st-d">이 계정 이름으로 변경 이력이 기록됩니다.</div></div>
