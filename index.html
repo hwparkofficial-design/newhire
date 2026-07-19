@@ -8,6 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 :root{
   --navy:#1F2A4E; --navy2:#2A3866; --pink:#F4B7CE; --pink-strong:#EF9DBC;
@@ -273,10 +276,11 @@ main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
     <div class="logo" id="loginLogo"></div>
     <h1>신규입사자 일정관리 시스템</h1>
     <p class="upper">SM Entertainment 인사 Unit</p>
-    <input type="password" id="pw" placeholder="비밀번호" />
-    <input type="text" id="editorName" placeholder="담당자 이름 (예: 홍길동)" />
-    <div class="login-err" id="loginErr"></div>
-    <button onclick="doLogin()">접속하기</button>
+    <div id="loginBody">
+      <button onclick="googleLogin()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#fff;color:#1F2A4E;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;"><span style="font-weight:800;color:#EA4335;font-family:Poppins,sans-serif;">G</span> Google로 로그인</button>
+      <div class="login-err" id="loginErr"></div>
+      <div style="color:#8892ad;font-size:12px;margin-top:14px;">허용된 구글 계정만 접속할 수 있어요.</div>
+    </div>
   </div>
 </div>
 
@@ -306,18 +310,26 @@ document.getElementById('loginLogo').innerHTML='<img src="'+LOGO_W+'" style="hei
 document.getElementById('sideLogo').innerHTML='<img src="'+LOGO_W+'" style="height:34px" alt="SM">';
 
 /* ===== STATE ===== */
-const PW='1995';
-const LS_KEY='sm_newhire_app_v3';
+const SETTINGS_PW='1995';
+const BOOTSTRAP_ADMIN='hyewon.park@smtown.com';
+const firebaseConfig={apiKey:"AIzaSyDjLMzBK1JIiz-zBgPOb7cQyVZ5vT10ZkI",authDomain:"new-hire-68bc3.firebaseapp.com",projectId:"new-hire-68bc3",storageBucket:"new-hire-68bc3.firebasestorage.app",messagingSenderId:"91639456384",appId:"1:91639456384:web:49f94ec98c9d3a79d97c65"};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.firestore();
+const DATA_DOC=db.collection('app').doc('data');
+const ACCESS_DOC=db.collection('app').doc('access');
 let state={people:[],departments:[],contacts:[],logs:[],logFolders:[],tips:{},settings:{deleteConfirm:true,dupDetect:true,maskSensitive:true}};
-let session={name:null};
+let accessCache={members:[],emails:[],admins:[]};
+let session={email:null,name:null,isAdmin:false};
+let settingsUnlocked=false, dataUnsub=null;
 let curTab='home', infoSub='email', homeMode='sheet';
 let calRef=new Date();
 let search={q:'',dept:'',type:'',jY:'',jM:'',jD:'',jDate:'',extra:[]};
 let alarmFolder='all';
 let curRecord=null;
 
-function load(){try{const d=JSON.parse(localStorage.getItem(LS_KEY));if(d){state=Object.assign(state,d);state.settings=Object.assign({deleteConfirm:true,dupDetect:true,maskSensitive:true},d.settings||{});state.tips=d.tips||{};state.logFolders=d.logFolders||[];}}catch(e){}}
-function save(){localStorage.setItem(LS_KEY,JSON.stringify(state));}
+function normState(d){d=d||{};return {people:d.people||[],departments:d.departments||[],contacts:d.contacts||[],logs:d.logs||[],logFolders:d.logFolders||[],tips:d.tips||{},settings:Object.assign({deleteConfirm:true,dupDetect:true,maskSensitive:true},d.settings||{})};}
+function save(){DATA_DOC.set(state).catch(e=>toast('저장 오류 — 인터넷 연결을 확인하세요.'));}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
 const COUNTRIES=['대한민국','미국','중국','일본','대만','홍콩','캐나다','영국','프랑스','독일','이탈리아','스페인','네덜란드','스위스','스웨덴','노르웨이','핀란드','덴마크','러시아','우크라이나','폴란드','오스트리아','벨기에','아일랜드','포르투갈','그리스','체코','헝가리','튀르키예','호주','뉴질랜드','인도','인도네시아','태국','베트남','필리핀','말레이시아','싱가포르','미얀마','캄보디아','몽골','네팔','파키스탄','방글라데시','스리랑카','우즈베키스탄','카자흐스탄','사우디아라비아','아랍에미리트','이스라엘','이집트','남아프리카공화국','나이지리아','케냐','모로코','브라질','아르헨티나','칠레','멕시코','콜롬비아','페루','기타'];
@@ -390,7 +402,8 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.cla
 function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function relTime(ts){const s=(Date.now()-ts)/1000;if(s<60)return'방금 전';if(s<3600)return Math.floor(s/60)+'분 전';if(s<86400)return Math.floor(s/3600)+'시간 전';return Math.floor(s/86400)+'일 전';}
 function payUnit(p){return p.payType==='월급제'?'원/月':(p.payType==='연봉제'?'원':'');}
-function fmtSalary(v,p){if(!v)return'';const u=payUnit(p);return v+(u?' '+u:'');}
+function formatComma(v){const d=String(v==null?'':v).replace(/[^0-9]/g,'');return d?d.replace(/\B(?=(\d{3})+(?!\d))/g,','):'';}
+function fmtSalary(v,p){if(!v)return'';const u=payUnit(p);return formatComma(v)+(u?' '+u:'');}
 function fmtDateK(d){if(d==='미정')return'입사일 미정';const dt=new Date(d+'T00:00');const wd=['일','월','화','수','목','금','토'][dt.getDay()];return `${d} (${wd})`;}
 function autoGrow(el){el.style.height='auto';el.style.height=(el.scrollHeight+2)+'px';}
 function sizeTextareas(){document.querySelectorAll('.modal textarea.grow-ta').forEach(autoGrow);}
@@ -398,16 +411,47 @@ function sizeTextareas(){document.querySelectorAll('.modal textarea.grow-ta').fo
 function log(action,target,detail){state.logs.unshift({id:uid(),ts:Date.now(),editor:session.name||'-',action,target:target||'',detail:detail||'',folderId:null});if(state.logs.length>800)state.logs.pop();}
 function diffPerson(o,n){const c=[];for(const k in FIELDS){if((o[k]||'')!==(n[k]||''))c.push(FIELDS[k].label);}['firstDone','secondDone'].forEach(k=>{if((o[k]||false)!==(n[k]||false))c.push(k==='firstDone'?'1차입력':'2차입력');});return c;}
 
-/* ===== LOGIN ===== */
-function doLogin(){const pw=document.getElementById('pw').value;const nm=document.getElementById('editorName').value.trim();const err=document.getElementById('loginErr');
- if(pw!==PW){err.textContent='비밀번호가 올바르지 않습니다.';return;}
- if(!nm){err.textContent='담당자 이름을 입력해주세요.';return;}
- session.name=nm;document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';
- document.getElementById('whoName').textContent=nm+' 님';
- log('login','','접속');save();renderNav();go('home');}
-function logout(){session.name=null;document.getElementById('app').style.display='none';document.getElementById('login').style.display='flex';document.getElementById('pw').value='';document.getElementById('loginErr').textContent='';}
-document.getElementById('pw').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('editorName').focus();});
-document.getElementById('editorName').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+/* ===== AUTH (Google login + Firestore realtime) ===== */
+function googleLogin(){const err=document.getElementById('loginErr');if(err)err.textContent='';const p=new firebase.auth.GoogleAuthProvider();window._freshLogin=true;auth.signInWithPopup(p).catch(e=>{const el=document.getElementById('loginErr');if(el)el.textContent='로그인 실패: '+(e.code||e.message);});}
+function logout(){if(dataUnsub){dataUnsub();dataUnsub=null;}settingsUnlocked=false;session={email:null,name:null,isAdmin:false};auth.signOut();}
+function showLogin(){document.getElementById('app').style.display='none';const l=document.getElementById('login');l.style.display='flex';
+ document.getElementById('loginBody').innerHTML=`<button onclick="googleLogin()" style="width:100%;padding:13px;border:none;border-radius:10px;background:#fff;color:#1F2A4E;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer;"><span style="font-weight:800;color:#EA4335;font-family:Poppins,sans-serif;">G</span> Google로 로그인</button><div class="login-err" id="loginErr"></div><div style="color:#8892ad;font-size:12px;margin-top:14px;">허용된 구글 계정만 접속할 수 있어요.</div>`;}
+function showNoAccess(user){document.getElementById('app').style.display='none';const l=document.getElementById('login');l.style.display='flex';
+ document.getElementById('loginBody').innerHTML=`<div style="color:#ff9db0;font-size:13px;margin-bottom:16px;line-height:1.5">이 계정은 접근 권한이 없습니다.<br><b>${esc(user.email||'')}</b><br>관리자에게 허용 명단 추가를 요청하세요.</div><button onclick="logout()" style="width:100%;padding:12px;border:1px solid #3a4676;border-radius:10px;background:transparent;color:#c3cade;font-size:13px;cursor:pointer;">다른 계정으로 로그인</button>`;}
+auth.onAuthStateChanged(async user=>{
+ if(!user){showLogin();return;}
+ const email=(user.email||'').toLowerCase();
+ try{
+   const snap=await ACCESS_DOC.get();
+   let acc=snap.exists?snap.data():null;
+   if(!acc){
+     if(email===BOOTSTRAP_ADMIN){acc={members:[{email:BOOTSTRAP_ADMIN,name:'박혜원',admin:true}],emails:[BOOTSTRAP_ADMIN],admins:[BOOTSTRAP_ADMIN]};await ACCESS_DOC.set(acc);}
+     else{showNoAccess(user);return;}
+   }
+   acc.members=acc.members||[];acc.emails=acc.emails||[];acc.admins=acc.admins||[];
+   if(!acc.emails.includes(email)&&email!==BOOTSTRAP_ADMIN){showNoAccess(user);return;}
+   accessCache=acc;session.email=email;
+   const me=acc.members.find(m=>(m.email||'').toLowerCase()===email);
+   session.name=me?me.name:(user.displayName||email);
+   session.isAdmin=acc.admins.map(x=>(x||'').toLowerCase()).includes(email);
+   startApp();
+ }catch(e){document.getElementById('loginBody').innerHTML='<div style="color:#ff9db0;font-size:13px">접속 오류: '+esc(e.message||e.code)+'</div><button onclick="logout()" style="margin-top:12px;width:100%;padding:11px;border:1px solid #3a4676;border-radius:10px;background:transparent;color:#c3cade;font-size:13px;cursor:pointer;">다시 로그인</button>';}
+});
+function startApp(){
+ document.getElementById('login').style.display='none';
+ document.getElementById('app').style.display='block';
+ document.getElementById('whoName').textContent=session.name+' 님';
+ if(dataUnsub)dataUnsub();
+ let first=true;
+ dataUnsub=DATA_DOC.onSnapshot(snap=>{
+   if(snap.exists)state=normState(snap.data());else{state=normState({});DATA_DOC.set(state);}
+   renderNav();
+   if(!document._modal)rerenderCurrent();
+   if(first){first=false;if(window._freshLogin){window._freshLogin=false;log('login','','접속');save();}}
+ },err=>toast('동기화 오류: '+(err.code||err.message)));
+ renderNav();go('home');
+}
+function rerenderCurrent(){const v=document.getElementById('view');if(curTab==='home')renderHome(v);else if(curTab==='info')renderInfo();else if(curTab==='alarm')renderAlarm(v);else if(curTab==='stats')renderStats(v);else if(curTab==='settings'&&settingsUnlocked)renderSettings(v);}
 
 /* ===== NAV ===== */
 function renderNav(){
@@ -423,8 +467,20 @@ function renderNav(){
  const dot=document.getElementById('bellDot');if(state.logs.length>0){dot.classList.remove('hidden');dot.textContent=state.logs.length>99?'99+':state.logs.length;}else dot.classList.add('hidden');
 }
 function go(tab){curTab=tab;if(tab==='info'){renderNav();return renderInfo();}renderNav();const v=document.getElementById('view');
- if(tab==='home')renderHome(v);else if(tab==='alarm')renderAlarm(v);else if(tab==='stats')renderStats(v);else if(tab==='settings')renderSettings(v);
+ if(tab==='home')renderHome(v);else if(tab==='alarm')renderAlarm(v);else if(tab==='stats')renderStats(v);else if(tab==='settings'){if(settingsUnlocked)renderSettings(v);else renderSettingsGate(v);}
  window.scrollTo(0,0);}
+function renderSettingsGate(v){
+ v.innerHTML=`<div class="page-head"><div><div class="label upper">Settings</div><h2>⚙️ 설정</h2></div></div>
+ <div class="card" style="max-width:360px;padding:26px 22px;text-align:center">
+   <div style="font-size:32px;margin-bottom:10px">🔒</div>
+   <div style="font-weight:700;margin-bottom:4px">설정 잠금</div>
+   <div style="color:var(--muted);font-size:13px;margin-bottom:16px">관리자 비밀번호를 입력하세요.</div>
+   <input type="password" id="setpw" placeholder="비밀번호" style="width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;outline:none;margin-bottom:10px" onkeydown="if(event.key==='Enter')unlockSettings()">
+   <div id="setpwErr" style="color:#E24B4A;font-size:12px;height:16px;margin-bottom:8px"></div>
+   <button class="btn primary" style="width:100%;justify-content:center" onclick="unlockSettings()">열기</button>
+ </div>`;
+ setTimeout(()=>{const el=document.getElementById('setpw');if(el)el.focus();},50);}
+function unlockSettings(){if(document.getElementById('setpw').value===SETTINGS_PW){settingsUnlocked=true;renderSettings(document.getElementById('view'));}else{document.getElementById('setpwErr').textContent='비밀번호가 올바르지 않습니다.';}}
 function setInfo(s){infoSub=s;renderNav();renderInfo();}
 
 /* ===== HOME ===== */
@@ -606,7 +662,7 @@ function editControl(k,p){const meta=FIELDS[k];const v=esc(p[k]||'');
  if(meta.type==='area')return `<textarea id="f_${k}" class="grow-ta" oninput="autoGrow(this)">${v}</textarea>`;
  if(meta.type==='select')return `<select id="f_${k}">${meta.options.map(o=>`<option ${((p[k]||'대한민국')===o)?'selected':''}>${o}</option>`).join('')}</select>`;
  if(meta.type==='pay')return `<select id="f_${k}" onchange="updatePayUnit()"><option value="">선택</option>${meta.options.map(o=>`<option ${p[k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
- if(meta.type==='salary')return `<div class="salary-wrap"><input id="f_${k}" value="${v}"><span class="unit" id="unit_${k}"></span></div>`;
+ if(meta.type==='salary')return `<div class="salary-wrap"><input id="f_${k}" value="${formatComma(p[k]||'')}" inputmode="numeric" oninput="this.value=formatComma(this.value)"><span class="unit" id="unit_${k}"></span></div>`;
  if(meta.type==='chips')return `<div class="chip-group" id="cg_${k}">${meta.options.map(o=>`<button type="button" class="chip ${p[k]===o?'on':''}" onclick="pickChip(this,'${k}','${esc(o)}')">${esc(o)}</button>`).join('')}</div><input type="hidden" id="f_${k}" value="${v}">`;
  if(meta.type==='dept')return `<input id="f_${k}" list="deptList" value="${v}" placeholder="입력 시 저장됩니다"><datalist id="deptList">${state.departments.map(d=>`<option value="${esc(d)}">`).join('')}</datalist>`;
  if(meta.type==='contact')return `<input id="f_${k}" list="contactList" value="${v}" oninput="autofillEmail('${k}')" placeholder="저장된 이름 검색"><datalist id="contactList">${state.contacts.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>`;
@@ -740,23 +796,48 @@ function renderStats(v){
 function renderSettings(v){
  const sw=(key,title,desc)=>`<div class="set-item"><div><div class="st-t">${title}</div><div class="st-d">${desc}</div></div>
    <label class="switch"><input type="checkbox" ${state.settings[key]?'checked':''} onchange="setToggle('${key}',this.checked)"><span class="slider"></span></label></div>`;
- v.innerHTML=`<div class="page-head"><div><div class="label upper">Settings</div><h2>⚙️ 설정</h2></div></div>
+ v.innerHTML=`<div class="page-head"><div><div class="label upper">Settings</div><h2>⚙️ 설정</h2></div><button class="btn ghost" onclick="logout()">로그아웃</button></div>
+ <div class="set-block">
+   <div class="set-item"><div><div class="st-t">👥 접근 허용 명단 <span class="count-pill">${accessCache.members.length}명</span></div><div class="st-d">이 앱에 로그인·수정할 수 있는 구글 계정이에요. ${session.isAdmin?'이름과 이메일을 입력해 추가하세요.':'관리자만 편집할 수 있어요.'}</div></div></div>
+   ${session.isAdmin?`<div class="inline-add" style="border-radius:10px;margin:6px 0 10px"><input id="am_name" placeholder="이름 (예: 박혜원)"><input id="am_email" placeholder="구글 이메일"><button class="btn pink sm" onclick="addMember()">＋ 추가</button></div>`:''}
+   <div id="memberRows">${memberRows()}</div>
+ </div>
  <div class="set-block">
    ${sw('deleteConfirm','삭제 전 확인창','사람 삭제 시 되돌릴 수 없다는 확인창을 표시합니다.')}
    ${sw('dupDetect','동명이인 자동 감지','같은 이름 추가 시 알파벳 표기 안내창을 띄웁니다.')}
    ${sw('maskSensitive','민감정보 마스킹','상세보기에서 연봉·계좌번호를 기본 가림(●●●) 처리합니다.')}
  </div>
  <div class="set-block">
-   <div class="set-item"><div><div class="st-t">💾 데이터 백업 내보내기</div><div class="st-d">모든 입사자·부서·이메일·이력·TIP을 파일 하나(.json)로 저장합니다. USB·메일에 보관하면 데이터가 사라지지 않습니다.</div></div>
+   <div class="set-item"><div><div class="st-t">💾 데이터 백업 내보내기</div><div class="st-d">모든 입사자·부서·이메일·이력·TIP을 파일 하나(.json)로 저장합니다.</div></div>
      <button class="btn primary sm" onclick="backupExport()">내보내기</button></div>
-   <div class="set-item"><div><div class="st-t">📂 데이터 백업 가져오기</div><div class="st-d">저장해둔 백업 파일(.json)로 전체 데이터를 복원합니다.</div></div>
+   <div class="set-item"><div><div class="st-t">📂 데이터 백업 가져오기</div><div class="st-d">백업 파일(.json)로 전체 데이터를 복원합니다. (기존 로컬 데이터를 클라우드로 옮길 때 사용)</div></div>
      <label class="btn ghost sm" style="cursor:pointer">가져오기<input type="file" accept=".json" style="display:none" onchange="backupImport(this)"></label></div>
  </div>
  <div class="set-block">
-   <div class="set-item"><div><div class="st-t">접속 담당자</div><div class="st-d">현재 이 이름으로 변경 이력이 기록됩니다.</div></div><div><span class="badge navy">${esc(session.name||'-')}</span></div></div>
-   <div class="set-item"><div><div class="st-t">비밀번호</div><div class="st-d">보안을 위해 앱 소스 코드에서 관리됩니다.</div></div><div><span class="badge gray">●●●●</span></div></div>
+   <div class="set-item"><div><div class="st-t">현재 로그인</div><div class="st-d">이 계정 이름으로 변경 이력이 기록됩니다.</div></div>
+     <div style="text-align:right"><div><span class="badge navy">${esc(session.name||'-')}</span> ${session.isAdmin?'<span class="badge pink">관리자</span>':''}</div><div style="color:var(--muted);font-size:11px;margin-top:4px">${esc(session.email||'')}</div></div></div>
  </div>`;
 }
+function memberRows(){if(!accessCache.members.length)return'<div class="empty">명단이 비어 있습니다.</div>';
+ return accessCache.members.slice().sort((a,b)=>(b.admin?1:0)-(a.admin?1:0)).map(m=>{const adm=!!m.admin;const e=esc(m.email).replace(/'/g,"\\'");return `<div class="list-row">
+   <div class="grow"><div class="lname">${esc(m.name||'')} ${adm?'<span class="badge pink" style="margin-left:4px">관리자</span>':''}</div><div class="lsub">${esc(m.email)}</div></div>
+   ${session.isAdmin?`<button class="btn ghost sm" onclick="toggleAdmin('${e}')">${adm?'관리자 해제':'관리자 지정'}</button><button class="btn ghost sm" onclick="removeMember('${e}')">삭제</button>`:''}</div>`;}).join('');}
+function refreshAccessArrays(){accessCache.emails=accessCache.members.map(m=>(m.email||'').toLowerCase());accessCache.admins=accessCache.members.filter(m=>m.admin).map(m=>(m.email||'').toLowerCase());session.isAdmin=accessCache.admins.includes(session.email);}
+function saveAccess(){refreshAccessArrays();return ACCESS_DOC.set(accessCache);}
+function addMember(){const name=document.getElementById('am_name').value.trim();const email=document.getElementById('am_email').value.trim().toLowerCase();
+ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('올바른 이메일을 입력하세요.');return;}
+ if(accessCache.members.some(m=>(m.email||'').toLowerCase()===email)){toast('이미 명단에 있는 계정입니다.');return;}
+ accessCache.members.push({email,name:name||email,admin:false});
+ saveAccess().then(()=>{log('edit','접근 명단',`${name||email} 추가`);save();renderSettings(document.getElementById('view'));toast('추가되었습니다.');}).catch(e=>toast('저장 오류: '+(e.code||e.message)));}
+function removeMember(email){const m=accessCache.members.find(x=>(x.email||'').toLowerCase()===email.toLowerCase());if(!m)return;
+ if(m.admin&&accessCache.members.filter(x=>x.admin).length<=1){toast('마지막 관리자는 삭제할 수 없습니다.');return;}
+ if(!confirm(`'${m.name||m.email}'을(를) 명단에서 삭제할까요?`))return;
+ accessCache.members=accessCache.members.filter(x=>(x.email||'').toLowerCase()!==email.toLowerCase());
+ saveAccess().then(()=>{log('edit','접근 명단',`${m.name||m.email} 삭제`);save();renderSettings(document.getElementById('view'));toast('삭제되었습니다.');}).catch(e=>toast('저장 오류: '+(e.code||e.message)));}
+function toggleAdmin(email){const m=accessCache.members.find(x=>(x.email||'').toLowerCase()===email.toLowerCase());if(!m)return;
+ if(m.admin&&accessCache.members.filter(x=>x.admin).length<=1){toast('최소 1명의 관리자가 필요합니다.');return;}
+ m.admin=!m.admin;
+ saveAccess().then(()=>{log('edit','접근 명단',`${m.name||m.email} ${m.admin?'관리자 지정':'관리자 해제'}`);save();renderSettings(document.getElementById('view'));toast('변경되었습니다.');}).catch(e=>toast('저장 오류: '+(e.code||e.message)));}
 function setToggle(key,val){state.settings[key]=val;save();toast('설정이 저장되었습니다.');}
 function backupExport(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='신규입사자_백업_'+ymd(new Date())+'.json';a.click();toast('백업 파일이 저장되었습니다.');}
 function backupImport(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!confirm('현재 데이터를 백업 파일 내용으로 덮어쓸까요?'))return;state=Object.assign({people:[],departments:[],contacts:[],logs:[],logFolders:[],tips:{},settings:{}},d);log('edit','데이터','백업 복원');save();toast('복원되었습니다.');go('home');}catch(e){toast('올바른 백업 파일이 아닙니다.');}};r.readAsText(f);}
@@ -794,7 +875,7 @@ function openModal(title,body,foot){closeModal();const bg=document.createElement
 function closeModal(){if(document._modal){document._modal.remove();document._modal=null;}}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
-load();
+/* 초기화는 auth.onAuthStateChanged 리스너가 담당 */
 </script>
 </body>
 </html>
