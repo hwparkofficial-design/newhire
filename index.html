@@ -103,7 +103,7 @@ main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
 
 /* SPREADSHEET */
 .sheet{width:100%;border-collapse:collapse;}
-.sheet th{background:#fafbfd;text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:12px 14px;border-bottom:1px solid var(--line);}
+.sheet th{background:#fafbfd;text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:12px 14px;border-bottom:1px solid var(--line);position:sticky;top:56px;z-index:3;box-shadow:0 1px 0 var(--line);}
 .sheet td{padding:12px 14px;border-bottom:1px solid #eef1f6;font-size:13px;}
 .sheet tr.person{cursor:pointer;}
 .sheet tr.person.pdrag td{opacity:.35;}
@@ -595,6 +595,7 @@ function filteredPeople(){let arr=state.people.slice();
   }else if(f.value){const v=f.value.toLowerCase();arr=arr.filter(p=>(p[f.field]||'').toLowerCase().includes(v));}});
  return arr;}
 
+function joinTypeShort(jt){if(!jt)return'';if(jt==='경력')return'경력';if(jt==='신입(수습급여 90% 적용 제외)')return'신입<span style="color:#E24B4A;font-weight:700">*</span>';if(jt==='신입')return'신입';return esc(jt);}
 function renderSheet(){
  const arr=filteredPeople().sort((a,b)=>(b.joinDate||'').localeCompare(a.joinDate||''));
  const body=document.getElementById('homeBody');
@@ -606,9 +607,9 @@ function renderSheet(){
   groups[d].forEach(p=>{rows+=`<tr class="person ${statusClass(p)}" draggable="true" data-pid="${p.id}" title="드래그해서 같은 날짜 안에서 순서 변경" onclick="openDetail('${p.id}')" ondragstart="pDragStart(event,'${p.id}')" ondragover="pDragOver(event)" ondragleave="pDragLeave(event)" ondrop="pDrop(event,'${p.id}')" ondragend="pDragEnd(event)">
    <td class="name-cell">${esc(p.name)}<span class="mini-checks"><span class="${p.firstDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','firstDone',${p.firstDone?'false':'true'})">1차</span><span class="${p.secondDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','secondDone',${p.secondDone?'false':'true'})">2차</span></span></td>
    <td>${esc(p.joinDate||'')}</td><td>${esc(p.dept||'')}</td><td>${esc(p.rank||'')}</td>
-   <td>${esc(p.handover||'')}</td><td>${esc(p.orgLead||'')}</td><td>${esc(p.note||'')}</td>
+   <td>${esc(p.handover||'')}</td><td>${esc(p.orgLead||'')}</td><td>${joinTypeShort(p.joinType)}</td>
    <td style="text-align:center"><button class="memo-btn ${p.rowMemo?'has':''}" title="${p.rowMemo?'메모 있음':'메모 추가'}" onclick="event.stopPropagation();openRowMemo(event,'${p.id}')">${p.rowMemo?'📝':'📄'}</button></td></tr>`;});});
- body.innerHTML=`<div class="card"><table class="sheet"><thead><tr><th>이름</th><th>입사일</th><th>부서</th><th>직급/직책</th><th>인계자</th><th>조직장</th><th>비고</th><th style="width:40px">메모</th></tr></thead><tbody>${rows||`<tr><td colspan=8><div class="empty">검색 결과가 없습니다.</div></td></tr>`}</tbody></table></div>`;
+ body.innerHTML=`<div class="card" style="overflow:visible"><table class="sheet"><thead><tr><th>이름</th><th>입사일</th><th>부서</th><th>직급/직책</th><th>인계자</th><th>조직장</th><th>입사구분</th><th style="width:40px">메모</th></tr></thead><tbody>${rows||`<tr><td colspan=8><div class="empty">검색 결과가 없습니다.</div></td></tr>`}</tbody></table></div>`;
 }
 
 /* CALENDAR */
@@ -719,12 +720,17 @@ function editControl(k,p){const meta=FIELDS[k];const v=esc(p[k]||'');
  if(meta.type==='pay')return `<select id="f_${k}" onchange="updatePayUnit()"><option value="">선택</option>${meta.options.map(o=>`<option ${p[k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
  if(meta.type==='salary')return `<div class="salary-wrap"><input id="f_${k}" value="${formatComma(p[k]||'')}" inputmode="numeric" oninput="commaInput(this)"><span class="unit" id="unit_${k}"></span></div>`;
  if(meta.type==='chips')return `<div class="chip-group" id="cg_${k}">${meta.options.map(o=>`<button type="button" class="chip ${p[k]===o?'on':''}" onclick="pickChip(this,'${k}','${esc(o)}')">${esc(o)}</button>`).join('')}</div><input type="hidden" id="f_${k}" value="${v}">`;
- if(meta.type==='dept')return `<input id="f_${k}" list="deptList" value="${v}" placeholder="입력 시 저장됩니다"><datalist id="deptList">${state.departments.map(d=>`<option value="${esc(d)}">`).join('')}</datalist>`;
- if(meta.type==='contact')return `<input id="f_${k}" list="contactList" value="${v}" oninput="autofillEmail('${k}')" placeholder="저장된 이름 검색"><datalist id="contactList">${state.contacts.map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>`;
- if(meta.type==='holder')return `<input id="f_${k}" list="holderList" value="${v}" onfocus="syncHolderList()" placeholder="본인 이름 선택 가능"><datalist id="holderList"><option value="${esc(p.name||'')}"></datalist>`;
+ if(meta.type==='dept')return `<div class="combo"><input id="f_${k}" autocomplete="off" value="${v}" oninput="acInput('${k}','dept')" onfocus="acInput('${k}','dept')" placeholder="입력 시 저장됩니다"><div class="combo-list hidden" id="ac_${k}"></div></div>`;
+ if(meta.type==='contact')return `<div class="combo"><input id="f_${k}" autocomplete="off" value="${v}" oninput="acInput('${k}','contact');autofillEmail('${k}')" onfocus="acInput('${k}','contact')" placeholder="이름 검색"><div class="combo-list hidden" id="ac_${k}"></div></div>`;
+ if(meta.type==='holder')return `<input id="f_${k}" value="${v}" onfocus="holderFocus(this)" placeholder="클릭 시 본인 이름 자동 입력">`;
  return `<input id="f_${k}" value="${v}">`;
 }
-function syncHolderList(){const n=document.getElementById('f_name'),dl=document.getElementById('holderList');if(n&&dl)dl.innerHTML=`<option value="${esc(n.value)}"></option>`;}
+function holderFocus(el){if(!el.value.trim()){const n=document.getElementById('f_name');if(n&&n.value.trim())el.value=n.value.trim();}}
+function acSource(kind){if(kind==='dept')return[...new Set([...state.departments,...state.people.map(p=>p.dept).filter(Boolean)])];return[...new Set(state.contacts.map(c=>c.name).filter(Boolean))];}
+function acInput(k,kind){const el=document.getElementById('f_'+k);if(!el)return;const val=(el.value||'').toLowerCase();const opts=acSource(kind).filter(o=>o&&o.toLowerCase().includes(val)).slice(0,60);const list=document.getElementById('ac_'+k);if(!list)return;
+ list.innerHTML=opts.length?opts.map(o=>`<div class="ci" onmousedown="acPick(event,'${k}','${esc(o).replace(/'/g,"\\'")}','${kind}')">${esc(o)}</div>`).join(''):'<div class="none">일치 항목 없음 · 직접 입력됩니다</div>';
+ const r=el.getBoundingClientRect();list.style.position='fixed';list.style.left=r.left+'px';list.style.top=(r.bottom+4)+'px';list.style.width=r.width+'px';list.style.zIndex='400';list.classList.remove('hidden');}
+function acPick(e,k,val,kind){if(e)e.preventDefault();const el=document.getElementById('f_'+k);if(el)el.value=val;const list=document.getElementById('ac_'+k);if(list)list.classList.add('hidden');if(kind==='contact')autofillEmail(k);}
 function statusBlock(p,mode){
  if(mode==='view')return `<div class="drow"><div class="k">1차 입력</div><div class="v">${p.firstDone?'<span class="badge navy">완료</span>':'<span class="badge gray">미완료</span>'}</div></div><div class="drow"><div class="k">2차 입력</div><div class="v">${p.secondDone?'<span class="badge navy">완료</span>':'<span class="badge gray">미완료</span>'}</div></div>`;
  return `<div class="chk"><label><input type="checkbox" id="f_firstDone" ${p.firstDone?'checked':''}>1차 입력 완료</label><label><input type="checkbox" id="f_secondDone" ${p.secondDone?'checked':''}>2차 입력 완료</label></div>`;
@@ -749,6 +755,7 @@ function saveRecord(editId){const g=k=>{const el=document.getElementById('f_'+k)
    payType:g('payType'),salary:g('salary'),extraSalary:g('extraSalary'),healthDependent:g('healthDependent'),bank:g('bank'),account:g('account'),accountHolder:g('accountHolder'),
    marriage:g('marriage'),children:g('children'),education:g('education'),school:g('school'),career:g('career'),internalMemo:g('internalMemo'),firstDone:g('firstDone'),secondDone:g('secondDone')};
  if(curRecord.styles&&Object.keys(curRecord.styles).length)np.styles=curRecord.styles;
+ if(curRecord.rowMemo)np.rowMemo=curRecord.rowMemo;
  if(state.settings.dupDetect && !editId){const dup=state.people.find(p=>p.name===name);if(dup){if(!confirm(`이미 '${name}' 이름이 등록되어 있습니다.\n입력 규칙상 동명이인은 이름 뒤에 알파벳을 표기해주세요 (예: ${name} A).\n\n그대로 저장할까요?`))return;}}
  if(np.dept&&!state.departments.includes(np.dept))state.departments.push(np.dept);
  saveContact(np.handover,np.handoverEmail,np.dept);saveContact(np.orgLead,np.orgLeadEmail,np.dept);
