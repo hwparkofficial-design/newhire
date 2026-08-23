@@ -200,8 +200,8 @@ main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
 
 .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;position:relative;}
 .field:last-child{margin-bottom:0;}
-.field label{font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;}
-.field label .req{color:var(--pink-strong);}
+.field label,.field .flbl{font-size:12px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;}
+.field label .req,.field .flbl .req{color:var(--pink-strong);}
 .field input,.field select,.field textarea{padding:9px 11px;border:1px solid var(--line);border-radius:9px;outline:none;background:#fff;width:100%;}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--pink-strong);}
 .field textarea{resize:none;overflow:hidden;min-height:42px;}
@@ -279,6 +279,37 @@ main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
 .switch input:checked+.slider{background:var(--navy);}
 .switch input:checked+.slider:before{transform:translateX(20px);}
 
+.upd-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px;}
+.upd-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.upd-date{font-weight:700;color:var(--navy);font-size:14px;font-family:'Poppins',sans-serif;}
+.upd-body{font-size:14px;line-height:1.7;color:var(--text);}
+.upd-body p{margin:0 0 8px;} .upd-body p:last-child{margin-bottom:0;}
+.u-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 10px;background:#fafbfd;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;}
+.utb{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:8px;font-size:14px;cursor:pointer;}
+.utb:hover{background:var(--pink-light);}
+.u-sep{width:1px;height:20px;background:var(--line);margin:0 2px;}
+.u-lbl{font-size:11px;color:var(--muted);}
+.usw{width:24px;height:24px;border:1px solid rgba(0,0,0,.12);border-radius:6px;cursor:pointer;font-weight:800;font-size:12px;display:inline-flex;align-items:center;justify-content:center;}
+.u-editor{min-height:160px;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.7;outline:none;}
+.u-editor:focus{border-color:var(--pink-strong);}
+.na-x{position:absolute;top:0;right:0;border:1px solid var(--line);background:#f7f8fc;color:var(--muted);width:18px;height:18px;border-radius:5px;font-size:11px;line-height:1;cursor:pointer;opacity:.55;padding:0;}
+.na-x:hover{opacity:1;}
+.na-x.on{background:var(--muted);color:#fff;border-color:var(--muted);opacity:1;}
+textarea.na-on,input.na-on{background:#eef0f4 !important;color:#9aa1b0;}
+.tasktbl td{vertical-align:middle;}
+.tk-cell{white-space:nowrap;}
+.tk-grp{font-size:10px;font-weight:700;color:var(--pink-strong);background:var(--pink-light);padding:2px 8px;border-radius:9px;margin:0 8px 0 2px;letter-spacing:.02em;}
+.tk{display:inline-flex;align-items:center;margin:0 5px;padding:2px 4px;border-radius:7px;}
+.tk.on{background:#eef6ff;}
+.tkbox{display:inline-flex;align-items:center;gap:3px;font-size:11px;cursor:pointer;color:var(--muted);}
+.tk.on .tkbox{color:var(--navy);font-weight:600;}
+.tkbox input{width:13px;height:13px;margin:0;accent-color:var(--navy);cursor:pointer;}
+.tk-memo{border:none;background:transparent;font-size:11px;cursor:pointer;opacity:0;padding:0 1px;margin-left:1px;}
+.tk:hover .tk-memo{opacity:.5;}
+.tk-memo.has{opacity:1;}
+.ins-h{font-size:15px;font-weight:700;margin:20px 0 12px;display:flex;align-items:center;gap:8px;}
+.ins-h:first-of-type{margin-top:4px;}
+.fgrp-lbl{font-size:11px;font-weight:700;color:var(--navy);background:#E9ECF2;padding:5px 10px;border-radius:14px;align-self:center;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 22px;border-radius:24px;font-size:13px;z-index:500;box-shadow:var(--shadow);opacity:0;transition:.3s;pointer-events:none;}
 .toast.show{opacity:1;}
 @media(max-width:760px){
@@ -346,14 +377,16 @@ const ACCESS_DOC=db.collection('app').doc('access');
 let state={people:[],departments:[],contacts:[],logs:[],logFolders:[],tips:{},settings:{deleteConfirm:true,dupDetect:true,maskSensitive:true}};
 let accessCache={members:[],emails:[],admins:[]};
 let session={email:null,name:null,isAdmin:false};
-let settingsUnlocked=false, dataUnsub=null;
+let settingsUnlocked=false, tasksUnlocked=false, dataUnsub=null;
+const TASKS_PRE=[['__1','1'],['__2','2'],['내방객','내방객'],['이력서','이력서'],['서류','서류'],['근로계약서','근로계약서']];
+const TASKS_POST=[['조직도','조직도'],['인원현황','인원현황'],['멜론','멜론'],['급여','급여'],['스캔','스캔'],['드라이브','드라이브'],['이라운지','이라운지']];
 let curTab='home', infoSub='email', homeMode='sheet';
 let calRef=new Date();
 let search={q:'',dept:'',type:'',jY:'',jM:'',jD:'',jDate:'',extra:[]};
 let alarmFolder='all';
 let curRecord=null;
 
-function normState(d){d=d||{};return {people:d.people||[],departments:d.departments||[],contacts:d.contacts||[],logs:d.logs||[],logFolders:d.logFolders||[],tips:d.tips||{},trash:d.trash||[],settings:Object.assign({deleteConfirm:true,dupDetect:true,maskSensitive:true},d.settings||{})};}
+function normState(d){d=d||{};return {people:d.people||[],departments:d.departments||[],contacts:d.contacts||[],logs:d.logs||[],logFolders:d.logFolders||[],tips:d.tips||{},trash:d.trash||[],updates:d.updates||[],updatesSeeded:d.updatesSeeded||false,settings:Object.assign({deleteConfirm:true,dupDetect:true,maskSensitive:true},d.settings||{})};}
 function purgeTrash(){if(!state.trash||!state.trash.length)return false;const cut=Date.now()-30*24*3600*1000;const before=state.trash.length;state.trash=state.trash.filter(t=>(t.deletedAt||0)>cut);return state.trash.length!==before;}
 function save(){DATA_DOC.set(state).catch(e=>toast('저장 오류 — 인터넷 연결을 확인하세요.'));}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -365,8 +398,8 @@ const FIELDS={
  name:{label:'이름',type:'text',req:1},
  joinDate:{label:'입사일',type:'date',req:1},
  dept:{label:'부서',type:'dept'},
- rank:{label:'직급/직책',type:'text'},
- joinType:{label:'입사구분',type:'chips',options:['경력','신입(수습급여 90% 적용 제외)','신입'],badge:'pink'},
+ rank:{label:'직급/직책',type:'rank'},
+ joinType:{label:'입사구분',type:'chips',options:['경력','신입','신입(수습급여 90% 적용 제외)'],badge:'pink'},
  empStatus:{label:'정규직 여부',type:'chips',options:['정규직','계약직'],badge:'navy'},
  nationality:{label:'국적',type:'select',options:COUNTRIES},
  handover:{label:'인계자',type:'contact'},
@@ -376,8 +409,8 @@ const FIELDS={
  note:{label:'비고',type:'area'},
  payType:{label:'급여유형',type:'pay',options:['연봉제','월급제'],badge:'gray'},
  salary:{label:'연봉',type:'salary',sensitive:1},
- extraSalary:{label:'계약 외 연봉',type:'area'},
- healthDependent:{label:'건강보험 피부양자',type:'area'},
+ extraSalary:{label:'계약 외 연봉',type:'area',na:1},
+ healthDependent:{label:'건강보험 피부양자',type:'area',na:1},
  bank:{label:'은행',type:'text'},
  account:{label:'계좌번호',type:'text',sensitive:1},
  accountHolder:{label:'예금주',type:'holder'},
@@ -386,7 +419,7 @@ const FIELDS={
  education:{label:'최종학력',type:'text'},
  school:{label:'학교/전공',type:'area'},
  career:{label:'경력사항',type:'area'},
- internalMemo:{label:'내부관리용 메모',type:'area'}
+ internalMemo:{label:'내부관리용 메모',type:'area',na:1}
 };
 const SECTIONS=[
  {t:'기본 정보',icon:'👤',f:['name','joinDate','dept','rank','joinType','empStatus','nationality']},
@@ -474,16 +507,16 @@ function startApp(){
    if(snap.exists)state=normState(snap.data());else{state=normState({});DATA_DOC.set(state);}
    renderNav();
    if(!document._modal&&!isEditingField())rerenderCurrent();
-   if(first){first=false;const purged=purgeTrash();if(window._freshLogin){window._freshLogin=false;log('login','','접속');save();}else if(purged)save();}
+   if(first){first=false;const purged=purgeTrash();const seeded=seedUpdates();if(window._freshLogin){window._freshLogin=false;log('login','','접속');save();}else if(purged||seeded)save();}
  },err=>toast('동기화 오류: '+(err.code||err.message)));
  renderNav();go('home');
 }
-function rerenderCurrent(){const v=document.getElementById('view');if(curTab==='home')renderHome(v);else if(curTab==='info')renderInfo();else if(curTab==='alarm')renderAlarm(v);else if(curTab==='stats')renderStats(v);else if(curTab==='settings'&&settingsUnlocked)renderSettings(v);}
+function rerenderCurrent(){const v=document.getElementById('view');if(curTab==='home')renderHome(v);else if(curTab==='info')renderInfo();else if(curTab==='alarm')renderAlarm(v);else if(curTab==='stats')renderStats(v);else if(curTab==='update')renderUpdate(v);else if(curTab==='settings'&&settingsUnlocked)renderSettings(v);}
 function isEditingField(){const a=document.activeElement;return !!(a&&(a.tagName==='INPUT'||a.tagName==='TEXTAREA'||a.tagName==='SELECT'||a.isContentEditable));}
 
 /* ===== NAV ===== */
 function renderNav(){
- const items=[['home','🏠','Home'],['info','🗂️','Directory'],['alarm','🔔','Activity'],['stats','📊','Insights'],['settings','⚙️','Settings']];
+ const items=[['home','🏠','Home'],['info','🗂️','Directory'],['alarm','🔔','Activity'],['stats','📊','Insights'],['update','🆕','Update'],['settings','⚙️','Settings']];
  let html='';
  items.forEach(([id,ic,label])=>{
   html+=`<button class="navi ${curTab===id?'active':''}" onclick="go('${id}')"><span>${ic}</span><span class="lbl">${label}</span></button>`;
@@ -495,7 +528,7 @@ function renderNav(){
  const dot=document.getElementById('bellDot');if(state.logs.length>0){dot.classList.remove('hidden');dot.textContent=state.logs.length>99?'99+':state.logs.length;}else dot.classList.add('hidden');
 }
 function go(tab){curTab=tab;if(tab==='info'){renderNav();return renderInfo();}renderNav();const v=document.getElementById('view');
- if(tab==='home')renderHome(v);else if(tab==='alarm')renderAlarm(v);else if(tab==='stats')renderStats(v);else if(tab==='settings'){if(settingsUnlocked)renderSettings(v);else renderSettingsGate(v);}
+ if(tab==='home')renderHome(v);else if(tab==='alarm')renderAlarm(v);else if(tab==='stats')renderStats(v);else if(tab==='update')renderUpdate(v);else if(tab==='settings'){if(settingsUnlocked)renderSettings(v);else renderSettingsGate(v);}
  window.scrollTo(0,0);}
 function renderSettingsGate(v){
  v.innerHTML=`<div class="page-head"><div><div class="label upper">Settings</div><h2>⚙️ 설정</h2></div></div>
@@ -517,13 +550,13 @@ function renderHome(v){
    <div><div class="label upper">Home</div><h2>신규입사자 관리</h2>
      <div class="sub">입사일 기준으로 관리됩니다 <span class="count-pill" id="countPill">${filteredPeople().length}명</span></div></div>
    <div class="toolbar">
-     <div class="seg"><button class="${homeMode==='sheet'?'active':''}" onclick="setMode('sheet')">스프레드시트</button><button class="${homeMode==='cal'?'active':''}" onclick="setMode('cal')">달력</button></div>
+     <div class="seg"><button class="${homeMode==='sheet'?'active':''}" onclick="setMode('sheet')">스프레드시트</button><button class="${homeMode==='cal'?'active':''}" onclick="setMode('cal')">달력</button><button class="${homeMode==='tasks'?'active':''}" onclick="setMode('tasks')">업무목록</button></div>
      <button class="btn ghost" onclick="openExport()">🖨 내보내기</button>
      <button class="btn pink" onclick="openForm()">＋ Add</button>
    </div></div>
    <div id="filterWrap"></div><div id="homeBody"></div>`;
  renderFilters();
- if(homeMode==='sheet')renderSheet();else renderCalendar();
+ renderHomeBody();
 }
 function setMode(m){homeMode=m;renderHome(document.getElementById('view'));}
 
@@ -568,7 +601,29 @@ function rmXFilter(i){search.extra.splice(i,1);renderFilters();updateResults();}
 function setXField(i,v){search.extra[i].field=v;search.extra[i].value='';renderFilters();updateResults();}
 function setXVal(i,v){search.extra[i].value=v;updateResults();}
 function resetFilters(){search={q:'',dept:'',type:'',jY:'',jM:'',jD:'',jDate:'',extra:[]};renderFilters();updateResults();}
-function updateResults(){const c=document.getElementById('countPill');if(c)c.textContent=filteredPeople().length+'명';if(homeMode==='sheet')renderSheet();else renderCalendar();}
+function updateResults(){const c=document.getElementById('countPill');if(c)c.textContent=filteredPeople().length+'명';renderHomeBody();}
+function renderHomeBody(){if(homeMode==='sheet')renderSheet();else if(homeMode==='cal')renderCalendar();else{if(tasksUnlocked)renderTasks();else renderTasksGate();}}
+function renderTasksGate(){document.getElementById('homeBody').innerHTML=`<div class="card" style="max-width:360px;padding:26px 22px;text-align:center"><div style="font-size:32px;margin-bottom:10px">🔒</div><div style="font-weight:700;margin-bottom:4px">업무목록 잠금</div><div style="color:var(--muted);font-size:13px;margin-bottom:16px">비밀번호를 입력하세요.</div><input type="password" id="tkpw" placeholder="비밀번호" style="width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:10px;outline:none;margin-bottom:10px" onkeydown="if(event.key==='Enter')unlockTasks()"><div id="tkpwErr" style="color:#E24B4A;font-size:12px;height:16px;margin-bottom:8px"></div><button class="btn primary" style="width:100%;justify-content:center" onclick="unlockTasks()">열기</button></div>`;setTimeout(()=>{const el=document.getElementById('tkpw');if(el)el.focus();},50);}
+function unlockTasks(){if(document.getElementById('tkpw').value===SETTINGS_PW){tasksUnlocked=true;renderHomeBody();}else{document.getElementById('tkpwErr').textContent='비밀번호가 올바르지 않습니다.';}}
+function taskChip(p,key,label){const isS1=key==='__1',isS2=key==='__2';const done=isS1?p.firstDone:isS2?p.secondDone:!!(p.tasks&&p.tasks[key]);const memo=p.taskMemos&&p.taskMemos[key];
+ return `<span class="tk ${done?'on':''}"><label class="tkbox"><input type="checkbox" ${done?'checked':''} onchange="toggleTask('${p.id}','${key}',this.checked)"><span>${esc(label)}</span></label><button class="tk-memo ${memo?'has':''}" title="${memo?'메모 있음':'메모'}" onclick="event.stopPropagation();openTaskMemo(event,'${p.id}','${key}','${esc(label).replace(/'/g,"\\'")}')">🗒</button></span>`;}
+function toggleTask(pid,key,val){const p=state.people.find(x=>x.id===pid);if(!p)return;if(key==='__1')return toggleCheck(pid,'firstDone',val);if(key==='__2')return toggleCheck(pid,'secondDone',val);if(!p.tasks)p.tasks={};if(val)p.tasks[key]=true;else delete p.tasks[key];log('edit',p.name,'업무 '+key+(val?' 완료':' 해제'));save();if(homeMode==='tasks')renderTasks();}
+function openTaskMemo(e,pid,key,label){closeRowMemo();const p=state.people.find(x=>x.id===pid);if(!p)return;const val=(p.taskMemos&&p.taskMemos[key])||'';const box=document.createElement('div');box.className='memo-pop';box.id='memoPop';
+ box.innerHTML=`<div class="memo-head"><span>🗒 ${esc(p.name)} · ${esc(label)}</span><button onclick="closeRowMemo()">×</button></div><textarea id="memoTa" class="grow-ta" oninput="autoGrow(this)" placeholder="메모">${esc(val)}</textarea><div class="memo-foot"><button class="btn primary sm" onclick="saveTaskMemo('${pid}','${key}')">저장</button></div>`;
+ document.body.appendChild(box);const cx=(e&&e.clientX)||120,cy=(e&&e.clientY)||120;box.style.left=Math.max(8,Math.min(cx,window.innerWidth-262))+'px';box.style.top=Math.max(8,Math.min(cy+8,window.innerHeight-230))+'px';const ta=document.getElementById('memoTa');autoGrow(ta);ta.focus();}
+function saveTaskMemo(pid,key){const p=state.people.find(x=>x.id===pid);if(!p)return;if(!p.taskMemos)p.taskMemos={};const v=document.getElementById('memoTa').value.trim();if(v)p.taskMemos[key]=v;else delete p.taskMemos[key];log('edit',p.name,'업무 메모 수정');save();closeRowMemo();if(homeMode==='tasks')renderTasks();}
+function renderTasks(){
+ const arr=filteredPeople().sort((a,b)=>(b.joinDate||'').localeCompare(a.joinDate||''));
+ const body=document.getElementById('homeBody');
+ if(!state.people.length){body.innerHTML=`<div class="card"><div class="empty"><div class="big">🗂️</div>아직 등록된 신규입사자가 없습니다.</div></div>`;return;}
+ const groups={};arr.forEach(p=>{const d=p.joinDate||'미정';(groups[d]=groups[d]||[]).push(p);});
+ const dates=Object.keys(groups).sort((a,b)=>b.localeCompare(a));let rows='';
+ dates.forEach(d=>{rows+=`<tr class="group"><td colspan="4">${fmtDateK(d)}<span class="cnt">${groups[d].length}명</span></td></tr>`;
+  groups[d].forEach(p=>{rows+=`<tr class="person ${statusClass(p)}"><td class="name-cell" style="cursor:pointer" onclick="openDetail('${p.id}')">${esc(p.name)}</td>
+   <td class="tk-cell"><span class="tk-grp">입사 전</span>${TASKS_PRE.map(t=>taskChip(p,t[0],t[1])).join('')}<span class="tk-grp">입사 후</span>${TASKS_POST.map(t=>taskChip(p,t[0],t[1])).join('')}</td>
+   <td>${esc(p.dept||'')}</td><td>${esc(p.rank||'')}</td></tr>`;});});
+ body.innerHTML=`<div class="card" style="overflow-x:auto"><table class="sheet tasktbl"><thead><tr><th>이름</th><th>체크리스트</th><th>부서</th><th>직급/직책</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
 
 /* combobox */
 function comboSource(kind){return kind==='dept'?[...new Set([...state.departments,...state.people.map(p=>p.dept).filter(Boolean)])]:['경력','신입(수습급여 90% 적용 제외)','신입'];}
@@ -605,11 +660,11 @@ function renderSheet(){
  let rows='';
  dates.forEach(d=>{rows+=`<tr class="group"><td colspan="8">${fmtDateK(d)}<span class="cnt">${groups[d].length}명</span></td></tr>`;
   groups[d].forEach(p=>{rows+=`<tr class="person ${statusClass(p)}" draggable="true" data-pid="${p.id}" title="드래그해서 같은 날짜 안에서 순서 변경" onclick="openDetail('${p.id}')" ondragstart="pDragStart(event,'${p.id}')" ondragover="pDragOver(event)" ondragleave="pDragLeave(event)" ondrop="pDrop(event,'${p.id}')" ondragend="pDragEnd(event)">
-   <td class="name-cell">${esc(p.name)}<span class="mini-checks"><span class="${p.firstDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','firstDone',${p.firstDone?'false':'true'})">1차</span><span class="${p.secondDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','secondDone',${p.secondDone?'false':'true'})">2차</span></span></td>
-   <td>${esc(p.joinDate||'')}</td><td>${esc(p.dept||'')}</td><td>${esc(p.rank||'')}</td>
-   <td>${esc(p.handover||'')}</td><td>${esc(p.orgLead||'')}</td><td>${joinTypeShort(p.joinType)}</td>
+   <td class="name-cell">${esc(p.name)}<span class="mini-checks"><span class="${p.firstDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','firstDone',${p.firstDone?'false':'true'})">1</span><span class="${p.secondDone?'on':''}" onclick="event.stopPropagation();toggleCheck('${p.id}','secondDone',${p.secondDone?'false':'true'})">2</span></span></td>
+   <td>${esc(p.dept||'')}</td><td>${esc(p.rank||'')}</td>
+   <td>${esc(p.handover||'')}</td><td>${esc(p.orgLead||'')}</td><td>${joinTypeShort(p.joinType)}</td><td>${esc(p.note||'')}</td>
    <td style="text-align:center"><button class="memo-btn ${p.rowMemo?'has':''}" title="${p.rowMemo?'메모 있음':'메모 추가'}" onclick="event.stopPropagation();openRowMemo(event,'${p.id}')">${p.rowMemo?'📝':'📄'}</button></td></tr>`;});});
- body.innerHTML=`<div class="card" style="overflow:visible"><table class="sheet"><thead><tr><th>이름</th><th>입사일</th><th>부서</th><th>직급/직책</th><th>인계자</th><th>조직장</th><th>입사구분</th><th style="width:40px">메모</th></tr></thead><tbody>${rows||`<tr><td colspan=8><div class="empty">검색 결과가 없습니다.</div></td></tr>`}</tbody></table></div>`;
+ body.innerHTML=`<div class="card" style="overflow:visible"><table class="sheet"><thead><tr><th>이름</th><th>부서</th><th>직급/직책</th><th>인계자</th><th>조직장</th><th>입사구분</th><th>비고</th><th style="width:40px">메모</th></tr></thead><tbody>${rows||`<tr><td colspan=8><div class="empty">검색 결과가 없습니다.</div></td></tr>`}</tbody></table></div>`;
 }
 
 /* CALENDAR */
@@ -631,8 +686,8 @@ function renderCalendar(){
 function calBox(p){return `<div class="cal-box ${statusClass(p)}" draggable="true" data-pid="${p.id}" onclick="openDetail('${p.id}')" ondragstart="pDragStart(event,'${p.id}')" ondragover="pDragOver(event)" ondragleave="pDragLeave(event)" ondrop="pDrop(event,'${p.id}')" ondragend="pDragEnd(event)">
   <div class="bname">${esc(p.name)}</div><div class="bdept">${esc(p.dept||'')}</div>
   <div class="bchecks" onclick="event.stopPropagation()">
-   <label><input type="checkbox" ${p.firstDone?'checked':''} onchange="toggleCheck('${p.id}','firstDone',this.checked)">1차</label>
-   <label><input type="checkbox" ${p.secondDone?'checked':''} onchange="toggleCheck('${p.id}','secondDone',this.checked)">2차</label>
+   <label><input type="checkbox" ${p.firstDone?'checked':''} onchange="toggleCheck('${p.id}','firstDone',this.checked)">1</label>
+   <label><input type="checkbox" ${p.secondDone?'checked':''} onchange="toggleCheck('${p.id}','secondDone',this.checked)">2</label>
   </div></div>`;}
 function calMove(n){calRef=new Date(calRef.getFullYear(),calRef.getMonth()+n,1);renderCalendar();}
 let pDragId=null;
@@ -661,10 +716,11 @@ function openDayModal(ds){const list=state.people.filter(p=>p.joinDate===ds);ope
 
 /* ===== UNIFIED RECORD MODAL (view/edit share layout) ===== */
 function cloneStyles(o){return JSON.parse(JSON.stringify((o&&o.styles)||{}));}
-function openDetail(id){const p=state.people.find(x=>x.id===id);if(p){curRecord=Object.assign({},p);curRecord.styles=cloneStyles(p);renderRecord('view');}}
-function openForm(id,presetDate){const src=id?state.people.find(x=>x.id===id):null;curRecord=src?Object.assign({},src):{id:null,nationality:'대한민국',joinDate:presetDate||''};curRecord.styles=cloneStyles(src);renderRecord('edit');}
+function cloneNa(o){return JSON.parse(JSON.stringify((o&&o.na)||{}));}
+function openDetail(id){const p=state.people.find(x=>x.id===id);if(p){curRecord=Object.assign({},p);curRecord.styles=cloneStyles(p);curRecord.na=cloneNa(p);renderRecord('view');}}
+function openForm(id,presetDate){const src=id?state.people.find(x=>x.id===id):null;curRecord=src?Object.assign({},src):{id:null,nationality:'대한민국',joinDate:presetDate||''};curRecord.styles=cloneStyles(src);curRecord.na=cloneNa(src);renderRecord('edit');}
 function editRecord(){renderRecord('edit');}
-function viewRecord(){const fresh=state.people.find(x=>x.id===curRecord.id);curRecord=Object.assign({},fresh);curRecord.styles=cloneStyles(fresh);renderRecord('view');}
+function viewRecord(){const fresh=state.people.find(x=>x.id===curRecord.id);curRecord=Object.assign({},fresh);curRecord.styles=cloneStyles(fresh);curRecord.na=cloneNa(fresh);renderRecord('view');}
 
 function renderRecord(mode){const p=curRecord;const isNew=!p.id;
  const body=SECTIONS.map(s=>{
@@ -710,23 +766,30 @@ function fieldBlock(k,p,mode){const meta=FIELDS[k];
  const tipBox=`<div class="tip-box hidden" id="tip_${k}">${tipView(k)}</div>`;
  const menu=`<span class="field-menu-wrap"><span class="fdot" id="fdot_${k}"></span><button type="button" class="dots" title="강조 표시 (형광펜·글자색)" onclick="toggleFieldMenu('${k}')">⋯</button></span>`;
  const fmenu=`<div class="fmenu hidden" id="fm_${k}"><span class="pl">형광펜</span>${Object.keys(HL).map(c=>`<button type="button" class="sw" style="background:${HL[c]}" title="${c}" onclick="editStyle('${k}','hl','${c}')"></button>`).join('')}<span class="pl">글자색</span>${Object.keys(TXT).map(c=>`<button type="button" class="sw" style="color:${TXT[c]}" onclick="editStyle('${k}','color','${c}')">A</button>`).join('')}<button type="button" class="sw clear" title="지우기" onclick="clearFieldStyle('${k}')">✕</button></div>`;
- return `<div class="field"><label>${meta.label} ${tipBtn} ${meta.req?'<span class=req>*</span>':''}${menu}</label>${tipBox}${fmenu}${editControl(k,p)}</div>`;
+ const naBtn=meta.na?`<button type="button" class="na-x ${(p.na&&p.na[k])?'on':''}" id="nax_${k}" title="입력 안 함 표시" onclick="naToggle('${k}')">×</button>`:'';
+ return `<div class="field"><div class="flbl">${meta.label} ${tipBtn} ${meta.req?'<span class=req>*</span>':''}${menu}</div>${tipBox}${fmenu}${editControl(k,p)}${naBtn}</div>`;
 }
+function naToggle(k){if(!curRecord.na)curRecord.na={};const el=document.getElementById('f_'+k);const on=!curRecord.na[k];
+ if(on){curRecord.na[k]=true;if(el){el.value='';el.classList.add('na-on');el.setAttribute('readonly','');}}
+ else{delete curRecord.na[k];if(el){el.classList.remove('na-on');el.removeAttribute('readonly');}}
+ if(el&&el.tagName==='TEXTAREA')autoGrow(el);
+ const btn=document.getElementById('nax_'+k);if(btn)btn.classList.toggle('on',on);}
 function editControl(k,p){const meta=FIELDS[k];const v=esc(p[k]||'');
  if(meta.type==='date'){const cur=p[k]||'',yy=cur.slice(0,4),mo=cur.slice(5,7),dd=cur.slice(8,10),ty=new Date().getFullYear();let yrs=[];for(let i=2020;i<=ty+2;i++)yrs.push(String(i));if(yy&&!yrs.includes(yy))yrs.push(yy);const mm=Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0')),dds=Array.from({length:31},(_,i)=>String(i+1).padStart(2,'0'));
    return `<div class="date-parts"><select id="fj_Y" onchange="onFormDatePart('${k}')"><option value="">연도</option>${yrs.map(o=>`<option ${yy===o?'selected':''}>${o}</option>`).join('')}</select><select id="fj_M" onchange="onFormDatePart('${k}')"><option value="">월</option>${mm.map(o=>`<option ${mo===o?'selected':''}>${o}</option>`).join('')}</select><select id="fj_D" onchange="onFormDatePart('${k}')"><option value="">일</option>${dds.map(o=>`<option ${dd===o?'selected':''}>${o}</option>`).join('')}</select><button type="button" class="cal-btn" title="달력에서 선택" onclick="openFormDate('${k}')">📅</button><input type="date" id="f_${k}" class="date-hidden" value="${cur}" onchange="onFormDatePicker('${k}')"></div>`;}
- if(meta.type==='area')return `<textarea id="f_${k}" class="grow-ta" oninput="autoGrow(this)">${v}</textarea>`;
+ if(meta.type==='area'){const naOn=p.na&&p.na[k];return `<textarea id="f_${k}" class="grow-ta${naOn?' na-on':''}" ${naOn?'readonly':''} oninput="autoGrow(this)">${naOn?'':v}</textarea>`;}
+ if(meta.type==='rank')return `<div class="combo"><input id="f_${k}" autocomplete="off" value="${v}" oninput="acInput('${k}','rank')" onfocus="acInput('${k}','rank')" placeholder="선택 또는 직접 입력"><div class="combo-list hidden" id="ac_${k}"></div></div>`;
  if(meta.type==='select')return `<select id="f_${k}">${meta.options.map(o=>`<option ${((p[k]||'대한민국')===o)?'selected':''}>${o}</option>`).join('')}</select>`;
  if(meta.type==='pay')return `<select id="f_${k}" onchange="updatePayUnit()"><option value="">선택</option>${meta.options.map(o=>`<option ${p[k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
  if(meta.type==='salary')return `<div class="salary-wrap"><input id="f_${k}" value="${formatComma(p[k]||'')}" inputmode="numeric" oninput="commaInput(this)"><span class="unit" id="unit_${k}"></span></div>`;
  if(meta.type==='chips')return `<div class="chip-group" id="cg_${k}">${meta.options.map(o=>`<button type="button" class="chip ${p[k]===o?'on':''}" onclick="pickChip(this,'${k}','${esc(o)}')">${esc(o)}</button>`).join('')}</div><input type="hidden" id="f_${k}" value="${v}">`;
  if(meta.type==='dept')return `<div class="combo"><input id="f_${k}" autocomplete="off" value="${v}" oninput="acInput('${k}','dept')" onfocus="acInput('${k}','dept')" placeholder="입력 시 저장됩니다"><div class="combo-list hidden" id="ac_${k}"></div></div>`;
  if(meta.type==='contact')return `<div class="combo"><input id="f_${k}" autocomplete="off" value="${v}" oninput="acInput('${k}','contact');autofillEmail('${k}')" onfocus="acInput('${k}','contact')" placeholder="이름 검색"><div class="combo-list hidden" id="ac_${k}"></div></div>`;
- if(meta.type==='holder')return `<input id="f_${k}" value="${v}" onfocus="holderFocus(this)" placeholder="클릭 시 본인 이름 자동 입력">`;
- return `<input id="f_${k}" value="${v}">`;
+ if(meta.type==='holder')return `<input id="f_${k}" value="${v}" autocomplete="off" onfocus="holderFocus(this)" placeholder="클릭 시 본인 이름 자동 입력">`;
+ return `<input id="f_${k}" value="${v}" autocomplete="off">`;
 }
 function holderFocus(el){if(!el.value.trim()){const n=document.getElementById('f_name');if(n&&n.value.trim())el.value=n.value.trim();}}
-function acSource(kind){if(kind==='dept')return[...new Set([...state.departments,...state.people.map(p=>p.dept).filter(Boolean)])];return[...new Set(state.contacts.map(c=>c.name).filter(Boolean))];}
+function acSource(kind){if(kind==='dept')return[...new Set([...state.departments,...state.people.map(p=>p.dept).filter(Boolean)])];if(kind==='rank')return['인턴','담당','선임','책임','수석'];return[...new Set(state.contacts.map(c=>c.name).filter(Boolean))];}
 function acInput(k,kind){const el=document.getElementById('f_'+k);if(!el)return;const val=(el.value||'').toLowerCase();const opts=acSource(kind).filter(o=>o&&o.toLowerCase().includes(val)).slice(0,60);const list=document.getElementById('ac_'+k);if(!list)return;
  list.innerHTML=opts.length?opts.map(o=>`<div class="ci" onmousedown="acPick(event,'${k}','${esc(o).replace(/'/g,"\\'")}','${kind}')">${esc(o)}</div>`).join(''):'<div class="none">일치 항목 없음 · 직접 입력됩니다</div>';
  const r=el.getBoundingClientRect();list.style.position='fixed';list.style.left=r.left+'px';list.style.top=(r.bottom+4)+'px';list.style.width=r.width+'px';list.style.zIndex='400';list.classList.remove('hidden');}
@@ -756,6 +819,9 @@ function saveRecord(editId){const g=k=>{const el=document.getElementById('f_'+k)
    marriage:g('marriage'),children:g('children'),education:g('education'),school:g('school'),career:g('career'),internalMemo:g('internalMemo'),firstDone:g('firstDone'),secondDone:g('secondDone')};
  if(curRecord.styles&&Object.keys(curRecord.styles).length)np.styles=curRecord.styles;
  if(curRecord.rowMemo)np.rowMemo=curRecord.rowMemo;
+ if(curRecord.na&&Object.keys(curRecord.na).length)np.na=curRecord.na;
+ if(curRecord.tasks)np.tasks=curRecord.tasks;
+ if(curRecord.taskMemos)np.taskMemos=curRecord.taskMemos;
  if(state.settings.dupDetect && !editId){const dup=state.people.find(p=>p.name===name);if(dup){if(!confirm(`이미 '${name}' 이름이 등록되어 있습니다.\n입력 규칙상 동명이인은 이름 뒤에 알파벳을 표기해주세요 (예: ${name} A).\n\n그대로 저장할까요?`))return;}}
  if(np.dept&&!state.departments.includes(np.dept))state.departments.push(np.dept);
  saveContact(np.handover,np.handoverEmail,np.dept);saveContact(np.orgLead,np.orgLeadEmail,np.dept);
@@ -825,13 +891,14 @@ function rmDept(d){if(!confirm(`'${d}' 부서를 삭제할까요? (소속 인원
 /* ===== ALARM ===== */
 function renderAlarm(v){
  const icon={add:'➕',edit:'✏️',del:'🗑️',login:'🔓'};const cls={add:'add',edit:'edit',del:'del',login:'login'};const verb={add:'추가',edit:'수정',del:'삭제',login:'접속'};
- let logs;if(alarmFolder==='all')logs=state.logs;else if(alarmFolder==='none')logs=state.logs.filter(l=>!l.folderId);else logs=state.logs.filter(l=>l.folderId===alarmFolder);
+ let logs;if(alarmFolder==='all')logs=state.logs;else if(alarmFolder==='none')logs=state.logs.filter(l=>!l.folderId);else if(alarmFolder.indexOf('ed:')===0){const nm=alarmFolder.slice(3);logs=state.logs.filter(l=>l.editor===nm);}else logs=state.logs.filter(l=>l.folderId===alarmFolder);
  const chip=(id,label,cnt,delable)=>`<span class="fchip ${alarmFolder===id?'active':''}" onclick="alarmFolder='${id}';renderAlarm(document.getElementById('view'))">${label} <span style="opacity:.6">${cnt}</span>${delable?`<button class="del" onclick="event.stopPropagation();delFolder('${id}')">×</button>`:''}</span>`;
  const folderChips=chip('all','전체',state.logs.length)+chip('none','미분류',state.logs.filter(l=>!l.folderId).length)+state.logFolders.map(f=>chip(f.id,'📁 '+esc(f.name),state.logs.filter(l=>l.folderId===f.id).length,true)).join('')+`<button class="btn ghost sm" onclick="addFolder()">＋ 폴더</button>`;
  const moveOpts=l=>`<select class="movesel" onchange="moveLog('${l.id}',this.value)"><option value="">폴더 이동…</option><option value="">미분류</option>${state.logFolders.map(f=>`<option value="${f.id}" ${l.folderId===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}</select>`;
  v.innerHTML=`<div class="page-head"><div><div class="label upper">Activity</div><h2>🔔 변경 이력</h2><div class="sub">누가 언제 무엇을 변경했는지 기록됩니다 <span class="count-pill">${state.logs.length}건</span></div></div>
    ${state.logs.length?`<button class="btn ghost" onclick="clearLogs()">이력 비우기</button>`:''}</div>
  <div class="folder-bar">${folderChips}</div>
+ ${accessCache.members.length?`<div class="folder-bar" style="margin-top:-4px"><span class="fgrp-lbl">인사 Unit</span>${accessCache.members.map(m=>{const nm=m.name||m.email;const cnt=state.logs.filter(l=>l.editor===nm).length;return `<span class="fchip ${alarmFolder==='ed:'+nm?'active':''}" onclick="alarmFolder='ed:${esc(nm).replace(/'/g,"\\'")}';renderAlarm(document.getElementById('view'))">👤 ${esc(nm)} <span style="opacity:.6">${cnt}</span></span>`;}).join('')}</div>`:''}
  <div class="card">${logs.length?logs.map(l=>`<div class="log-row"><div class="ic ${cls[l.action]}">${icon[l.action]}</div>
    <div class="lmain"><b>${esc(l.editor)}</b> 님이 ${l.target?`<b>${esc(l.target)}</b> `:''}${verb[l.action]}${l.action==='login'?'':' 했습니다'}${l.detail?`<div class="ldetail">${esc(l.detail)}</div>`:''}<div style="margin-top:6px">${moveOpts(l)}</div></div>
    <div class="ltime" title="${new Date(l.ts).toLocaleString('ko-KR')}">${relTime(l.ts)}</div></div>`).join(''):`<div class="empty"><div class="big">🔔</div>이 폴더에 표시할 이력이 없습니다.</div>`}</div>`;
@@ -844,27 +911,65 @@ function moveLog(logId,folderId){const l=state.logs.find(x=>x.id===logId);if(!l)
 function clearLogs(){if(!confirm('변경 이력을 모두 비울까요? (폴더는 유지됩니다)'))return;state.logs=[];save();renderAlarm(document.getElementById('view'));}
 
 /* ===== STATS ===== */
+function weekOfMonth(dateStr){const d=new Date(dateStr+'T00:00');const day=d.getDate();const first=new Date(d.getFullYear(),d.getMonth(),1);let fd=(first.getDay()+6)%7;return Math.floor((day-1+fd)/7)+1;}
+function deptEntries(list){const c={};list.forEach(p=>{const d=p.dept||'(미지정)';c[d]=(c[d]||0)+1;});return Object.entries(c).sort((a,b)=>b[1]-a[1]);}
+function neEntries(list){let n=0,e=0;list.forEach(p=>{if((p.joinType||'').startsWith('신입'))n++;else if(p.joinType==='경력')e++;});return[['신입',n],['경력',e]];}
+function empEntries(list){let a=0,b=0;list.forEach(p=>{if(p.empStatus==='정규직')a++;else if(p.empStatus==='계약직')b++;});return[['정규직',a],['계약직',b]];}
+function dispatchCount(list){return list.filter(p=>(p.note||'').includes('파견직')).length;}
+function barBlock(title,entries){const total=entries.reduce((s,e)=>s+e[1],0);const max=Math.max(1,...entries.map(e=>e[1]));const has=entries.some(e=>e[1]>0);
+ return `<div class="card" style="padding:18px;margin-bottom:14px"><h4 style="margin:0 0 14px;font-size:14px">${title}</h4>${has?entries.map(([l,c])=>`<div class="bar-row"><div class="bl">${esc(l)}</div><div class="bar-track"><div class="bar-fill" style="width:${c/max*100}%"></div></div><div class="bv">${c}명${total?' ('+Math.round(c/total*100)+'%)':''}</div></div>`).join(''):'<div class="empty" style="padding:16px">데이터 없음</div>'}</div>`;}
 function renderStats(v){
- const now=new Date();const thisM=ymd(now).slice(0,7);
- const total=state.people.length;const thisMonth=state.people.filter(p=>(p.joinDate||'').slice(0,7)===thisM).length;
- const done=state.people.filter(p=>p.firstDone&&p.secondDone).length;const pending=total-done;
- const deptCnt={};state.people.forEach(p=>{const d=p.dept||'(미지정)';deptCnt[d]=(deptCnt[d]||0)+1;});
- const deptArr=Object.entries(deptCnt).sort((a,b)=>b[1]-a[1]);const maxD=Math.max(1,...deptArr.map(d=>d[1]));
- const monCnt={};state.people.forEach(p=>{const mo=(p.joinDate||'').slice(0,7);if(mo)monCnt[mo]=(monCnt[mo]||0)+1;});
- const monArr=Object.entries(monCnt).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);const maxM=Math.max(1,...monArr.map(m=>m[1]));
- v.innerHTML=`<div class="page-head"><div><div class="label upper">Insights</div><h2>📊 통계 요약</h2><div class="sub">${now.getFullYear()}년 ${now.getMonth()+1}월 기준</div></div></div>
- <div class="stat-grid">
-   <div class="stat-card"><div class="n">${thisMonth}</div><div class="t">이번 달 입사자</div></div>
-   <div class="stat-card"><div class="n">${total}</div><div class="t">전체 등록 인원</div></div>
-   <div class="stat-card"><div class="n">${done}</div><div class="t">입력 완료 (1·2차)</div></div>
-   <div class="stat-card"><div class="n">${pending}</div><div class="t">입력 진행 중</div></div></div>
- <div class="card" style="padding:20px;margin-bottom:16px"><h4 style="margin:0 0 16px;font-size:14px">부서별 입사자</h4>
-   ${deptArr.length?deptArr.map(([d,c])=>`<div class="bar-row"><div class="bl">${esc(d)}</div><div class="bar-track"><div class="bar-fill" style="width:${c/maxD*100}%"></div></div><div class="bv">${c}명</div></div>`).join(''):'<div class="empty">데이터가 없습니다.</div>'}</div>
- <div class="card" style="padding:20px"><h4 style="margin:0 0 16px;font-size:14px">월별 입사 추이 (최근 6개월)</h4>
-   ${monArr.length?monArr.map(([m,c])=>`<div class="bar-row"><div class="bl">${m}</div><div class="bar-track"><div class="bar-fill" style="width:${c/maxM*100}%"></div></div><div class="bv">${c}명</div></div>`).join(''):'<div class="empty">데이터가 없습니다.</div>'}</div>`;
+ const now=new Date();const mKey=ymd(now).slice(0,7);const mNum=now.getMonth()+1;const wk=weekOfMonth(ymd(now));
+ const inMonth=state.people.filter(p=>(p.joinDate||'').slice(0,7)===mKey);
+ const inWeek=inMonth.filter(p=>p.joinDate&&weekOfMonth(p.joinDate)===wk);
+ const months=[...new Set(state.people.map(p=>(p.joinDate||'').slice(0,7)).filter(Boolean))].sort().reverse();
+ v.innerHTML=`<div class="page-head"><div><div class="label upper">Insights</div><h2>📊 통계</h2><div class="sub">접속일 ${ymd(now)} 기준 (월요일 시작 주)</div></div></div>
+   <h3 class="ins-h">${mNum}월 입사자 <span class="count-pill">${inMonth.length}명</span></h3>
+   ${barBlock('부서별 입사자',deptEntries(inMonth))}
+   ${barBlock('신입 / 경력 비중',neEntries(inMonth))}
+   <h3 class="ins-h">${mNum}월 ${wk}주 입사자 <span class="count-pill">${inWeek.length}명</span></h3>
+   ${barBlock('부서별 입사자',deptEntries(inWeek))}
+   ${barBlock('신입 / 경력 비중',neEntries(inWeek))}
+   ${barBlock('정규직 / 계약직 비중',empEntries(inWeek))}
+   <div class="card" style="padding:18px;margin-bottom:14px"><h4 style="margin:0;font-size:14px">파견직 수 <span class="count-pill">${dispatchCount(inWeek)}명</span></h4></div>
+   <h3 class="ins-h">🗂️ Archive</h3>
+   <div class="card">${months.length?months.map(m=>`<div class="list-row" style="cursor:pointer" onclick="openArchive('${m}')"><div class="grow"><div class="lname">${m.slice(0,4)}년 ${parseInt(m.slice(5,7),10)}월</div><div class="lsub">${state.people.filter(p=>(p.joinDate||'').slice(0,7)===m).length}명 입사</div></div><span style="color:var(--muted)">클릭해서 보기 ›</span></div>`).join(''):'<div class="empty">기록이 없습니다.</div>'}</div>`;
 }
+function openArchive(m){const list=state.people.filter(p=>(p.joinDate||'').slice(0,7)===m);
+ const body=barBlock('부서별 입사자',deptEntries(list))+barBlock('신입 / 경력 비중',neEntries(list))+barBlock('정규직 / 계약직 비중',empEntries(list))+`<div class="card" style="padding:16px"><h4 style="margin:0;font-size:14px">파견직 수 <span class="count-pill">${dispatchCount(list)}명</span></h4></div>`;
+ openModal(`${m.slice(0,4)}년 ${parseInt(m.slice(5,7),10)}월 입사자 (${list.length}명)`,body,`<button class="btn ghost" onclick="closeModal()">닫기</button>`);}
 
 /* ===== SETTINGS ===== */
+function seedUpdates(){if(state.updatesSeeded)return false;const html="<p><b>Update 탭 신설</b> — 앞으로 어떤 점이 바뀌었는지 이 탭에서 날짜별로 확인할 수 있어요.</p><p><b>Home 화면 개편</b> — 목록에 '입사구분'과 '비고'가 함께 보이도록 컬럼을 정리했고, 입사일은 날짜별 묶음 제목으로 표시돼요. 1차·2차 표시도 1·2로 간결해졌어요.</p><p><b>내보내기(Export) 개편</b> — 부서 단위로도 내보낼 수 있고, 필요한 항목만 직접 골라 순서까지 정하는 'Custom' 방식이 생겼어요.</p>";state.updates=state.updates||[];state.updates.unshift({id:uid(),date:'2026-08-23',html:html,ts:Date.now()});state.updatesSeeded=true;return true;}
+function renderUpdate(v){
+ const list=(state.updates||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.ts||0)-(a.ts||0));
+ v.innerHTML=`<div class="page-head"><div><div class="label upper">Update</div><h2>🆕 업데이트 내역</h2><div class="sub">앱이 어떻게 바뀌었는지 날짜별로 기록돼요.${session.isAdmin?'':' (관리자만 편집 가능)'}</div></div>${session.isAdmin?`<button class="btn pink" onclick="addUpdate()">＋ 항목 추가</button>`:''}</div>
+ ${list.length?list.map(u=>`<div class="upd-card">
+   <div class="upd-head"><div class="upd-date">${esc(u.date||'')}</div>${session.isAdmin?`<div style="display:flex;gap:6px"><button class="btn ghost sm" onclick="editUpdate('${u.id}')">수정</button><button class="btn ghost sm" onclick="delUpdate('${u.id}')">삭제</button></div>`:''}</div>
+   <div class="upd-body">${u.html||''}</div></div>`).join(''):`<div class="card"><div class="empty"><div class="big">🆕</div>등록된 업데이트가 없습니다.</div></div>`}`;
+}
+function addUpdate(){if(!session.isAdmin){toast('관리자만 편집할 수 있어요.');return;}openUpdateEditor(null);}
+function editUpdate(id){if(!session.isAdmin)return;const u=(state.updates||[]).find(x=>x.id===id);if(u)openUpdateEditor(u);}
+function delUpdate(id){if(!session.isAdmin)return;const u=(state.updates||[]).find(x=>x.id===id);if(!u)return;if(!confirm('이 업데이트 항목을 삭제할까요?'))return;state.updates=state.updates.filter(x=>x.id!==id);log('del','Update',(u.date||'')+' 항목 삭제');save();renderUpdate(document.getElementById('view'));toast('삭제되었습니다.');}
+function openUpdateEditor(u){const isNew=!u;const date=(u&&u.date)||new Date().toISOString().slice(0,10);const html=(u&&u.html)||'';
+ const tsw=c=>`<button type="button" class="usw" style="color:${c};border-color:${c}" onmousedown="event.preventDefault()" onclick="uFmt('foreColor','${c}')">A</button>`;
+ const hsw=(c,label)=>`<button type="button" class="usw" style="background:${c==='transparent'?'#fff':c}" title="${label}" onmousedown="event.preventDefault()" onclick="uFmt('hiliteColor','${c}')">${c==='transparent'?'✕':''}</button>`;
+ const body=`<div class="field"><label>날짜</label><input type="date" id="u_date" value="${date}"></div>
+  <div class="u-toolbar">
+    <button type="button" class="utb" style="font-weight:800" onmousedown="event.preventDefault()" onclick="uFmt('bold')">B</button>
+    <button type="button" class="utb" style="font-style:italic" onmousedown="event.preventDefault()" onclick="uFmt('italic')">I</button>
+    <button type="button" class="utb" style="text-decoration:underline" onmousedown="event.preventDefault()" onclick="uFmt('underline')">U</button>
+    <span class="u-sep"></span><span class="u-lbl">글자색</span>${['#1A1A2E','#E24B4A','#185FA5','#1D9E75','#BA7517'].map(tsw).join('')}
+    <span class="u-sep"></span><span class="u-lbl">형광펜</span>${[['#FFF3B0','노랑'],['#FAD1E0','분홍'],['#C9F2E3','민트'],['#D9E4FB','블루'],['transparent','지우기']].map(x=>hsw(x[0],x[1])).join('')}
+  </div>
+  <div id="u_editor" class="u-editor" contenteditable="true">${html}</div>`;
+ openModal(isNew?'업데이트 추가':'업데이트 수정',body,`<button class="btn ghost" onclick="closeModal()">취소</button><button class="btn primary" onclick="saveUpdate('${(u&&u.id)||''}')">저장</button>`);}
+function uFmt(cmd,val){const ed=document.getElementById('u_editor');if(ed)ed.focus();try{document.execCommand(cmd,false,val||null);}catch(e){}}
+function saveUpdate(id){const date=document.getElementById('u_date').value;let html=document.getElementById('u_editor').innerHTML.trim();if(!date){toast('날짜를 선택하세요.');return;}if(!html||html==='<br>'){toast('내용을 입력하세요.');return;}
+ state.updates=state.updates||[];
+ if(id){const u=state.updates.find(x=>x.id===id);if(u){u.date=date;u.html=html;}log('edit','Update',date+' 항목 수정');}
+ else{state.updates.unshift({id:uid(),date,html,ts:Date.now()});log('add','Update',date+' 항목 추가');}
+ state.updatesSeeded=true;save();closeModal();renderUpdate(document.getElementById('view'));toast('저장되었습니다.');}
 function renderSettings(v){
  const sw=(key,title,desc)=>`<div class="set-item"><div><div class="st-t">${title}</div><div class="st-d">${desc}</div></div>
    <label class="switch"><input type="checkbox" ${state.settings[key]?'checked':''} onchange="setToggle('${key}',this.checked)"><span class="slider"></span></label></div>`;
@@ -938,27 +1043,43 @@ function backupExport(){const blob=new Blob([JSON.stringify(state,null,2)],{type
 function backupImport(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!confirm('현재 데이터를 백업 파일 내용으로 덮어쓸까요?'))return;state=Object.assign({people:[],departments:[],contacts:[],logs:[],logFolders:[],tips:{},settings:{}},d);log('edit','데이터','백업 복원');save();toast('복원되었습니다.');go('home');}catch(e){toast('올바른 백업 파일이 아닙니다.');}};r.readAsText(f);}
 
 /* ===== EXPORT ===== */
+function natExport(n){return n==='대한민국'?'X':(n||'');}
+function naVal(p,k){return (p.na&&p.na[k])?'':(p[k]||'');}
+const EXPORT_ALL=[['이름',p=>p.name],['입사일',p=>p.joinDate],['부서',p=>p.dept],['직급/직책',p=>p.rank],['인계자',p=>p.handover],['인계자 이메일',p=>p.handoverEmail],['조직장',p=>p.orgLead],['조직장 이메일',p=>p.orgLeadEmail],['비고',p=>p.note],['입사구분',p=>p.joinType],['내부관리용 메모',p=>naVal(p,'internalMemo')],['급여 유형',p=>p.payType],['연봉',p=>fmtSalary(p.salary,p)],['계약 외 연봉',p=>naVal(p,'extraSalary')],['건강보험 피부양자',p=>naVal(p,'healthDependent')],['은행',p=>p.bank],['계좌번호',p=>p.account],['예금주',p=>p.accountHolder],['최종학력',p=>p.education],['학교/전공',p=>p.school],['경력사항',p=>p.career],['정규직 여부',p=>p.empStatus],['국적',p=>natExport(p.nationality)],['혼인 여부',p=>p.marriage],['자녀 유무',p=>p.children]];
+const EXPORT_SUMMARY=[['이름',p=>p.name],['입사일',p=>p.joinDate],['부서',p=>p.dept],['직급/직책',p=>p.rank],['인수인계자',p=>p.handover],['조직장',p=>p.orgLead],['비고',p=>p.note]];
+let exCustom=null,exDragI=null;
 function openExport(){
  const dates=[...new Set(state.people.map(p=>p.joinDate).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+ const depts=[...new Set(state.people.map(p=>p.dept).filter(Boolean))].sort();
+ exCustom=EXPORT_ALL.map(f=>({label:f[0],on:true}));
  const body=`
- <div class="field"><label>내보낼 범위</label><select id="ex_scope" onchange="exScopeChange()"><option value="all">전체 내용</option><option value="date">특정 입사일</option><option value="person">특정 사람</option></select></div>
+ <div class="field"><label>내보낼 범위 (Range)</label><select id="ex_scope" onchange="exScopeChange()"><option value="all">ALL — 전체</option><option value="date">Date — 특정 입사일</option><option value="dept">Department — 특정 부서</option><option value="person">Person — 특정 사람</option></select></div>
  <div class="field hidden" id="ex_dateWrap"><label>입사일 선택</label><select id="ex_date">${dates.map(d=>`<option value="${d}">${d}</option>`).join('')}</select></div>
+ <div class="field hidden" id="ex_deptWrap"><label>부서 선택</label><select id="ex_dept">${depts.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('')}</select></div>
  <div class="field hidden" id="ex_personWrap"><label>사람 선택 (여러 명 가능)</label><select id="ex_person" multiple size="6" style="height:auto">${state.people.slice().sort((a,b)=>(b.joinDate||'').localeCompare(a.joinDate||'')).map(p=>`<option value="${p.id}">${esc(p.name)} (${esc(p.joinDate)})</option>`).join('')}</select></div>
- <div class="field"><label>내보낼 항목</label><select id="ex_cols"><option value="summary">요약 7개 컬럼 (이름·입사일·부서·직급/직책·인계자·조직장·비고)</option><option value="full">상세 전체 필드</option></select></div>
- <div class="chk"><label><input type="checkbox" id="ex_sensitive" checked>민감정보(연봉·계약외연봉·계좌번호) 포함</label></div>`;
+ <div class="field"><label>내보낼 항목 (Items)</label><select id="ex_cols" onchange="exColsChange()"><option value="all">ALL — 상세 전체 필드</option><option value="summary">Summary View — 요약 7개 컬럼</option><option value="custom">Custom — 직접 선택·정렬</option></select></div>
+ <div class="hidden" id="ex_customWrap"><div class="st-d" style="margin:2px 0 8px">포함할 항목을 체크하고, ⠿를 잡고 드래그해 순서를 바꿀 수 있어요. (이름 필수)</div><div id="ex_customList" style="max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:10px"></div></div>`;
  openModal('엑셀로 내보내기',body,`<button class="btn ghost" onclick="closeModal()">취소</button><button class="btn primary" onclick="doExport()">📥 엑셀 다운로드</button>`);
 }
-function exScopeChange(){const s=document.getElementById('ex_scope').value;document.getElementById('ex_dateWrap').classList.toggle('hidden',s!=='date');document.getElementById('ex_personWrap').classList.toggle('hidden',s!=='person');}
+function exScopeChange(){const s=document.getElementById('ex_scope').value;document.getElementById('ex_dateWrap').classList.toggle('hidden',s!=='date');document.getElementById('ex_deptWrap').classList.toggle('hidden',s!=='dept');document.getElementById('ex_personWrap').classList.toggle('hidden',s!=='person');}
+function exColsChange(){const c=document.getElementById('ex_cols').value;document.getElementById('ex_customWrap').classList.toggle('hidden',c!=='custom');if(c==='custom')renderExCustom();}
+function renderExCustom(){document.getElementById('ex_customList').innerHTML=exCustom.map((f,i)=>{const req=f.label==='이름';return `<div class="list-row" draggable="${req?'false':'true'}" data-exi="${i}" ${req?'':`ondragstart="exDragStart(event,${i})" ondragover="exDragOver(event)" ondrop="exDrop(event,${i})" ondragend="exDragEnd(event)"`}><span class="handle" style="${req?'opacity:.25':''}">⠿</span><label style="display:flex;align-items:center;gap:8px;flex:1;font-weight:500;cursor:pointer"><input type="checkbox" ${f.on?'checked':''} ${req?'disabled':''} onchange="exCustom[${i}].on=this.checked"> ${esc(f.label)}${req?' <span style="color:var(--muted);font-size:11px">(필수)</span>':''}</label></div>`;}).join('');}
+function exDragStart(e,i){exDragI=i;e.dataTransfer.effectAllowed='move';}
+function exDragOver(e){e.preventDefault();}
+function exDragEnd(e){exDragI=null;}
+function exDrop(e,i){e.preventDefault();if(exDragI==null||exDragI===i)return;const moved=exCustom.splice(exDragI,1)[0];exCustom.splice(i,0,moved);exDragI=null;renderExCustom();}
 function doExport(){
  const scope=document.getElementById('ex_scope').value;let arr=state.people.slice();
  if(scope==='date'){const d=document.getElementById('ex_date').value;arr=arr.filter(p=>p.joinDate===d);}
+ if(scope==='dept'){const d=document.getElementById('ex_dept').value;arr=arr.filter(p=>p.dept===d);}
  if(scope==='person'){const sel=[...document.getElementById('ex_person').selectedOptions].map(o=>o.value);arr=arr.filter(p=>sel.includes(p.id));}
  if(!arr.length){toast('내보낼 데이터가 없습니다.');return;}
  arr.sort((a,b)=>(b.joinDate||'').localeCompare(a.joinDate||''));
- const cols=document.getElementById('ex_cols').value;const sens=document.getElementById('ex_sensitive').checked;let rows;
- if(cols==='summary'){rows=arr.map(p=>({'이름':p.name,'입사일':p.joinDate,'부서':p.dept,'직급/직책':p.rank,'인계자':p.handover,'조직장':p.orgLead,'비고':p.note}));}
- else{rows=arr.map(p=>{const o={'이름':p.name,'입사일':p.joinDate,'부서':p.dept,'직급/직책':p.rank,'입사구분':p.joinType,'정규직여부':p.empStatus,'국적':p.nationality,'인계자':p.handover,'인계자이메일':p.handoverEmail,'조직장':p.orgLead,'조직장이메일':p.orgLeadEmail,'비고':p.note,'급여유형':p.payType,'건강보험피부양자':p.healthDependent,'은행':p.bank,'예금주':p.accountHolder,'혼인여부':p.marriage,'자녀유무':p.children,'최종학력':p.education,'학교/전공':p.school,'경력사항':p.career,'내부관리메모':p.internalMemo,'1차입력':p.firstDone?'완료':'','2차입력':p.secondDone?'완료':''};
-   if(sens){o['연봉']=fmtSalary(p.salary,p);o['계약외연봉']=p.extraSalary;o['계좌번호']=p.account;}return o;});}
+ const items=document.getElementById('ex_cols').value;let cols;
+ if(items==='summary')cols=EXPORT_SUMMARY;
+ else if(items==='custom'){const map={};EXPORT_ALL.forEach(f=>map[f[0]]=f[1]);cols=exCustom.filter(f=>f.on).map(f=>[f.label,map[f.label]]);}
+ else cols=EXPORT_ALL;
+ const rows=arr.map(p=>{const o={};cols.forEach(c=>{o[c[0]]=c[1]?(c[1](p)||''):'';});return o;});
  const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'신규입사자');
  XLSX.writeFile(wb,'신규입사자_'+ymd(new Date())+'.xlsx');closeModal();toast('엑셀 파일이 저장되었습니다.');
 }
