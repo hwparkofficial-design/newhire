@@ -386,7 +386,7 @@ let search={q:'',dept:'',type:'',jY:'',jM:'',jD:'',jDate:'',extra:[]};
 let alarmFolder='all';
 let curRecord=null;
 
-function normState(d){d=d||{};return {people:d.people||[],departments:d.departments||[],contacts:d.contacts||[],logs:d.logs||[],logFolders:d.logFolders||[],tips:d.tips||{},trash:d.trash||[],updates:d.updates||[],updatesSeeded:d.updatesSeeded||false,settings:Object.assign({deleteConfirm:true,dupDetect:true,maskSensitive:true},d.settings||{})};}
+function normState(d){d=d||{};return {people:d.people||[],departments:d.departments||[],contacts:d.contacts||[],logs:d.logs||[],logFolders:d.logFolders||[],tips:d.tips||{},trash:d.trash||[],updates:d.updates||[],updatesSeeded:d.updatesSeeded||false,updatesSeededV:d.updatesSeededV||0,settings:Object.assign({deleteConfirm:true,dupDetect:true,maskSensitive:true},d.settings||{})};}
 function purgeTrash(){if(!state.trash||!state.trash.length)return false;const cut=Date.now()-30*24*3600*1000;const before=state.trash.length;state.trash=state.trash.filter(t=>(t.deletedAt||0)>cut);return state.trash.length!==before;}
 function save(){DATA_DOC.set(state).catch(e=>toast('저장 오류 — 인터넷 연결을 확인하세요.'));}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -550,7 +550,7 @@ function renderHome(v){
    <div><div class="label upper">Home</div><h2>신규입사자 관리</h2>
      <div class="sub">입사일 기준으로 관리됩니다 <span class="count-pill" id="countPill">${filteredPeople().length}명</span></div></div>
    <div class="toolbar">
-     <div class="seg"><button class="${homeMode==='sheet'?'active':''}" onclick="setMode('sheet')">스프레드시트</button><button class="${homeMode==='cal'?'active':''}" onclick="setMode('cal')">달력</button><button class="${homeMode==='tasks'?'active':''}" onclick="setMode('tasks')">업무목록</button></div>
+     <div class="seg"><button class="${homeMode==='sheet'?'active':''}" onclick="setMode('sheet')">스프레드시트</button><button class="${homeMode==='cal'?'active':''}" onclick="setMode('cal')">달력</button><button class="${homeMode==='tasks'?'active':''}" onclick="setMode('tasks')">🔒 업무목록</button></div>
      <button class="btn ghost" onclick="openExport()">🖨 내보내기</button>
      <button class="btn pink" onclick="openForm()">＋ Add</button>
    </div></div>
@@ -898,7 +898,7 @@ function renderAlarm(v){
  v.innerHTML=`<div class="page-head"><div><div class="label upper">Activity</div><h2>🔔 변경 이력</h2><div class="sub">누가 언제 무엇을 변경했는지 기록됩니다 <span class="count-pill">${state.logs.length}건</span></div></div>
    ${state.logs.length?`<button class="btn ghost" onclick="clearLogs()">이력 비우기</button>`:''}</div>
  <div class="folder-bar">${folderChips}</div>
- ${accessCache.members.length?`<div class="folder-bar" style="margin-top:-4px"><span class="fgrp-lbl">인사 Unit</span>${accessCache.members.map(m=>{const nm=m.name||m.email;const cnt=state.logs.filter(l=>l.editor===nm).length;return `<span class="fchip ${alarmFolder==='ed:'+nm?'active':''}" onclick="alarmFolder='ed:${esc(nm).replace(/'/g,"\\'")}';renderAlarm(document.getElementById('view'))">👤 ${esc(nm)} <span style="opacity:.6">${cnt}</span></span>`;}).join('')}</div>`:''}
+ ${(()=>{const names=[...new Set(accessCache.members.map(m=>m.name||m.email))].map(nm=>[nm,state.logs.filter(l=>l.editor===nm).length]).filter(x=>x[1]>0);return names.length?`<div class="folder-bar" style="margin-top:-4px"><span class="fgrp-lbl">인사 Unit</span>${names.map(([nm,cnt])=>`<span class="fchip ${alarmFolder==='ed:'+nm?'active':''}" onclick="alarmFolder='ed:${esc(nm).replace(/'/g,"\\'")}';renderAlarm(document.getElementById('view'))">👤 ${esc(nm)} <span style="opacity:.6">${cnt}</span></span>`).join('')}</div>`:'';})()}
  <div class="card">${logs.length?logs.map(l=>`<div class="log-row"><div class="ic ${cls[l.action]}">${icon[l.action]}</div>
    <div class="lmain"><b>${esc(l.editor)}</b> 님이 ${l.target?`<b>${esc(l.target)}</b> `:''}${verb[l.action]}${l.action==='login'?'':' 했습니다'}${l.detail?`<div class="ldetail">${esc(l.detail)}</div>`:''}<div style="margin-top:6px">${moveOpts(l)}</div></div>
    <div class="ltime" title="${new Date(l.ts).toLocaleString('ko-KR')}">${relTime(l.ts)}</div></div>`).join(''):`<div class="empty"><div class="big">🔔</div>이 폴더에 표시할 이력이 없습니다.</div>`}</div>`;
@@ -940,7 +940,7 @@ function openArchive(m){const list=state.people.filter(p=>(p.joinDate||'').slice
  openModal(`${m.slice(0,4)}년 ${parseInt(m.slice(5,7),10)}월 입사자 (${list.length}명)`,body,`<button class="btn ghost" onclick="closeModal()">닫기</button>`);}
 
 /* ===== SETTINGS ===== */
-function seedUpdates(){if(state.updatesSeeded)return false;const html="<p><b>Update 탭 신설</b> — 앞으로 어떤 점이 바뀌었는지 이 탭에서 날짜별로 확인할 수 있어요.</p><p><b>Home 화면 개편</b> — 목록에 '입사구분'과 '비고'가 함께 보이도록 컬럼을 정리했고, 입사일은 날짜별 묶음 제목으로 표시돼요. 1차·2차 표시도 1·2로 간결해졌어요.</p><p><b>내보내기(Export) 개편</b> — 부서 단위로도 내보낼 수 있고, 필요한 항목만 직접 골라 순서까지 정하는 'Custom' 방식이 생겼어요.</p>";state.updates=state.updates||[];state.updates.unshift({id:uid(),date:'2026-08-23',html:html,ts:Date.now()});state.updatesSeeded=true;return true;}
+function seedUpdates(){if(state.updatesSeededV>=2)return false;const html="<p>1. <b>Update 탭 신설</b> — 앞으로 어떤 점이 바뀌었는지 이 탭에서 날짜별로 확인 가능</p><p>2. <b>Home 화면 개편</b> — 목록에 '입사일' 제외 / '입사구분'과 '비고' 추가 / 1차·2차 표시 → 1·2 (간결화)</p><p>3. <b>내보내기(Export) 개편</b> — 부서 단위, 필요한 항목만 직접 골라 순서까지 정하는 'Custom' 방식 추가</p>";state.updates=state.updates||[];const e=state.updates.find(u=>u.date==='2026-08-23');if(e){e.html=html;}else{state.updates.unshift({id:uid(),date:'2026-08-23',html:html,ts:Date.now()});}state.updatesSeeded=true;state.updatesSeededV=2;return true;}
 function renderUpdate(v){
  const list=(state.updates||[]).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.ts||0)-(a.ts||0));
  v.innerHTML=`<div class="page-head"><div><div class="label upper">Update</div><h2>🆕 업데이트 내역</h2><div class="sub">앱이 어떻게 바뀌었는지 날짜별로 기록돼요.${session.isAdmin?'':' (관리자만 편집 가능)'}</div></div>${session.isAdmin?`<button class="btn pink" onclick="addUpdate()">＋ 항목 추가</button>`:''}</div>
