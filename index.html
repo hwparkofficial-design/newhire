@@ -196,6 +196,19 @@ main{padding:26px 30px 60px;max-width:1120px;width:100%;margin:0 auto;}
 .cp-btn{border:none;background:transparent;color:var(--grey);opacity:0;cursor:pointer;font-size:13px;padding:0 2px;flex-shrink:0;}
 .drow:hover .cp-btn{opacity:.55;}
 .cp-btn:hover{opacity:1;color:var(--navy);}
+.cf-panel{border:1px solid var(--pink-strong);border-radius:12px;padding:12px;margin-bottom:14px;background:#fffafc;}
+.cf-row{position:relative;margin-bottom:10px;}
+.cf-row input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;outline:none;}
+.cf-lbl{font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.cf-all{border:none;background:#eef1f6;color:var(--navy);font-size:11px;padding:3px 8px;border-radius:8px;cursor:pointer;}
+.cf-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:4px 10px;margin-bottom:10px;max-height:180px;overflow:auto;}
+.cf-chk{font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;color:var(--text);}
+.cf-foot{display:flex;justify-content:flex-end;gap:8px;}
+.memo-clear{margin-left:auto;border:1px solid var(--line);background:#fff;color:var(--muted);font-size:11px;padding:3px 9px;border-radius:8px;cursor:pointer;}
+.memo-clear:hover{background:#f7f8fc;color:var(--text);}
+textarea.memo-ta{background:#FFFBEB;border:1px solid #F0E3A8;border-radius:10px;color:#5f5320;min-height:70px;}
+textarea.memo-ta:focus{border-color:#E6D875;}
+.memo-view{background:#FFFBEB;border:1px solid #F0E3A8;border-radius:10px;padding:13px 15px;white-space:pre-line;font-size:13.5px;line-height:1.6;color:#5f5320;}
 .mask{cursor:pointer;color:var(--navy);font-weight:600;background:#eef1f7;padding:1px 8px;border-radius:8px;font-size:12px;}
 .badge{display:inline-block;padding:2px 9px;border-radius:11px;font-size:11px;font-weight:600;}
 .badge.gray{background:#eef1f6;color:var(--muted);}
@@ -415,7 +428,7 @@ const FIELDS={
  salary:{label:'연봉',type:'salary',sensitive:1},
  extraSalary:{label:'계약 외 연봉',type:'area',na:1},
  healthDependent:{label:'건강보험 피부양자',type:'area',na:1},
- bank:{label:'은행',type:'text'},
+ bank:{label:'은행',type:'bank'},
  account:{label:'계좌번호',type:'text',sensitive:1},
  accountHolder:{label:'예금주',type:'holder'},
  marriage:{label:'혼인 여부',type:'chips',options:['O','X'],badge:'gray'},
@@ -432,7 +445,8 @@ const SECTIONS=[
  {t:'개인 · 온보딩',icon:'🏦',f:['healthDependent','bank','account','accountHolder','marriage','children']},
  {t:'학력 · 경력',icon:'🎓',f:['education','school','career']},
  {t:'내부관리용 메모',icon:'🗒️',f:['internalMemo']},
- {t:'입력 상태',icon:'✅',f:['__status']}
+ {t:'입력 상태',icon:'✅',f:['__status']},
+ {t:'메모',icon:'🗒️',f:['__memo']}
 ];
 const TIP_DEFAULT={
  name:"기본적으로 알파벳 표기 X\n동명이인이 있을 경우 알파벳까지 표기",
@@ -728,16 +742,37 @@ function viewRecord(){const fresh=state.people.find(x=>x.id===curRecord.id);curR
 
 function renderRecord(mode){const p=curRecord;const isNew=!p.id;
  const body=SECTIONS.map(s=>{
-   const inner=s.f.map(k=>k==='__status'?statusBlock(p,mode):fieldBlock(k,p,mode)).join('');
+   const inner=s.f.map(k=>k==='__status'?statusBlock(p,mode):k==='__memo'?memoBlock(p,mode):fieldBlock(k,p,mode)).join('');
    return `<div class="rsec"><div class="rsec-head"><span class="ic">${s.icon}</span><span class="rt">${s.t}</span><span class="rline"></span></div><div class="rsec-body">${inner}</div></div>`;
  }).join('');
  let foot;
  if(mode==='view')foot=`<button class="btn ghost" onclick="closeModal()">닫기</button><button class="btn danger" onclick="delPerson('${p.id}')">삭제</button><button class="btn primary" onclick="editRecord()">수정</button>`;
  else foot=`<button class="btn ghost" onclick="${isNew?'closeModal()':'viewRecord()'}">취소</button><button class="btn primary" onclick="saveRecord('${p.id||''}')">저장</button>`;
  const title=isNew?'신규입사자 추가':(esc(p.name)+' 님'+(mode==='edit'?' · 수정':' 상세정보'));
- openModal(title,body,foot);
- if(mode==='edit'){updatePayUnit();sizeTextareas();SECTIONS.forEach(s=>s.f.forEach(k=>{if(k!=='__status')applyEditPreview(k);}));}
+ const copyBar=(mode==='edit'&&isNew)?`<div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn ghost sm" onclick="openCopyFrom()">⬇ Copy from</button></div><div id="copyFromPanel"></div>`:'';
+ openModal(title,copyBar+body,foot);
+ if(mode==='edit'){updatePayUnit();sizeTextareas();SECTIONS.forEach(s=>s.f.forEach(k=>{if(k!=='__status'&&k!=='__memo')applyEditPreview(k);}));}
 }
+let cfSrcId=null;
+function openCopyFrom(){cfSrcId=null;const keys=SECTIONS.flatMap(s=>s.f).filter(k=>k!=='__status');
+ const chks=keys.map(k=>`<label class="cf-chk"><input type="checkbox" data-cfk="${k}" checked> ${esc(FIELDS[k].label)}</label>`).join('')+`<label class="cf-chk"><input type="checkbox" data-cfk="__extra" checked> 입력상태·업무·메모</label>`;
+ const el=document.getElementById('copyFromPanel');if(!el)return;
+ el.innerHTML=`<div class="cf-panel"><div class="cf-row combo"><input id="cf_name" placeholder="불러올 사람 성함 검색" autocomplete="off" oninput="cfSearch()" onfocus="cfSearch()"><div class="combo-list hidden" id="cf_list"></div></div>
+   <div class="cf-lbl">불러올 항목 <button type="button" class="cf-all" onclick="cfToggleAll()">전체 선택/해제</button></div>
+   <div class="cf-fields">${chks}</div>
+   <div class="cf-foot"><button class="btn ghost sm" onclick="closeCopyFrom()">취소</button><button class="btn primary sm" onclick="applyCopyFrom()">불러오기</button></div></div>`;
+ setTimeout(()=>{const n=document.getElementById('cf_name');if(n)n.focus();},40);}
+function closeCopyFrom(){const el=document.getElementById('copyFromPanel');if(el)el.innerHTML='';}
+function cfToggleAll(){const chks=[...document.querySelectorAll('#copyFromPanel input[data-cfk]')];const anyOff=chks.some(c=>!c.checked);chks.forEach(c=>c.checked=anyOff);}
+function cfSearch(){const val=(document.getElementById('cf_name').value||'').toLowerCase();const list=document.getElementById('cf_list');if(!list)return;const opts=state.people.filter(p=>(p.name||'').toLowerCase().includes(val)).slice(0,50);
+ list.innerHTML=opts.length?opts.map(p=>`<div class="ci" onmousedown="cfPick(event,'${p.id}','${esc(p.name).replace(/'/g,"\\'")} (${esc(p.joinDate||'')})')">${esc(p.name)} <span style="color:var(--muted);font-size:11px">${esc(p.joinDate||'')}</span></div>`).join(''):'<div class="none">일치하는 사람이 없습니다</div>';list.classList.remove('hidden');}
+function cfPick(e,id,label){if(e)e.preventDefault();cfSrcId=id;const n=document.getElementById('cf_name');if(n)n.value=label;const l=document.getElementById('cf_list');if(l)l.classList.add('hidden');}
+function applyCopyFrom(){if(!cfSrcId){toast('불러올 사람을 선택하세요.');return;}const src=state.people.find(x=>x.id===cfSrcId);if(!src)return;
+ const checks=[...document.querySelectorAll('#copyFromPanel input[data-cfk]')];
+ checks.forEach(cb=>{if(!cb.checked)return;const k=cb.dataset.cfk;
+  if(k==='__extra'){curRecord.firstDone=src.firstDone;curRecord.secondDone=src.secondDone;curRecord.tasks=src.tasks?JSON.parse(JSON.stringify(src.tasks)):undefined;curRecord.taskMemos=src.taskMemos?JSON.parse(JSON.stringify(src.taskMemos)):undefined;curRecord.rowMemo=src.rowMemo;curRecord.styles=src.styles?JSON.parse(JSON.stringify(src.styles)):{};}
+  else{curRecord[k]=src[k];if(FIELDS[k]&&FIELDS[k].na){if(!curRecord.na)curRecord.na={};if(src.na&&src.na[k])curRecord.na[k]=true;else delete curRecord.na[k];}}});
+ renderRecord('edit');toast('불러왔어요. 수정 후 저장하세요.');}
 const EMAILF=['handoverEmail','orgLeadEmail'];
 const HL={yellow:'#FFF3B0',pink:'#FAD1E0',mint:'#C9F2E3'};
 const TXT={red:'#E24B4A',blue:'#185FA5'};
@@ -787,6 +822,7 @@ function editControl(k,p){const meta=FIELDS[k];const v=esc(p[k]||'');
  if(meta.type==='area'){const naOn=p.na&&p.na[k];return `<textarea id="f_${k}" class="grow-ta${naOn?' na-on':''}" ${naOn?'readonly':''} oninput="autoGrow(this)">${naOn?'':v}</textarea>`;}
  if(meta.type==='rank')return `<div class="combo"><input id="f_${k}" autocomplete="off" value="${v}" oninput="acInput('${k}','rank')" onfocus="acInput('${k}','rank')" placeholder="선택 또는 직접 입력"><div class="combo-list hidden" id="ac_${k}"></div></div>`;
  if(meta.type==='edu')return `<div class="combo"><input id="f_${k}" autocomplete="off" value="${v}" oninput="acInput('${k}','edu')" onfocus="acInput('${k}','edu')" placeholder="선택 또는 직접 입력"><div class="combo-list hidden" id="ac_${k}"></div></div>`;
+ if(meta.type==='bank')return `<div class="combo"><input id="f_${k}" autocomplete="off" value="${v}" oninput="acInput('${k}','bank')" onfocus="acInput('${k}','bank')" placeholder="선택 또는 직접 입력"><div class="combo-list hidden" id="ac_${k}"></div></div>`;
  if(meta.type==='select')return `<select id="f_${k}">${meta.options.map(o=>`<option ${((p[k]||'대한민국')===o)?'selected':''}>${o}</option>`).join('')}</select>`;
  if(meta.type==='pay')return `<select id="f_${k}" onchange="updatePayUnit()"><option value="">선택</option>${meta.options.map(o=>`<option ${p[k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
  if(meta.type==='salary')return `<div class="salary-wrap"><input id="f_${k}" value="${formatComma(p[k]||'')}" inputmode="numeric" oninput="commaInput(this)"><span class="unit" id="unit_${k}"></span></div>`;
@@ -797,7 +833,7 @@ function editControl(k,p){const meta=FIELDS[k];const v=esc(p[k]||'');
  return `<input id="f_${k}" value="${v}" autocomplete="off">`;
 }
 function holderFocus(el){if(!el.value.trim()){const n=document.getElementById('f_name');if(n&&n.value.trim())el.value=n.value.trim();}}
-function acSource(kind){if(kind==='dept')return[...new Set([...state.departments,...state.people.map(p=>p.dept).filter(Boolean)])];if(kind==='rank')return['인턴','담당','선임','책임','수석'];if(kind==='edu')return['고졸','전문대졸','대졸','대학원졸','대졸예정'];return[...new Set(state.contacts.map(c=>c.name).filter(Boolean))];}
+function acSource(kind){if(kind==='dept')return[...new Set([...state.departments,...state.people.map(p=>p.dept).filter(Boolean)])];if(kind==='rank')return['인턴','담당','선임','책임','수석'];if(kind==='edu')return['고졸','전문대졸','대졸','대학원졸','대졸예정'];if(kind==='bank')return['신한은행','우리은행','농협은행','국민은행','토스뱅크','카카오뱅크'];return[...new Set(state.contacts.map(c=>c.name).filter(Boolean))];}
 function acInput(k,kind){const el=document.getElementById('f_'+k);if(!el)return;const val=(el.value||'').toLowerCase();const opts=acSource(kind).filter(o=>o&&o.toLowerCase().includes(val)).slice(0,60);const list=document.getElementById('ac_'+k);if(!list)return;
  list.innerHTML=opts.length?opts.map(o=>`<div class="ci" onmousedown="acPick(event,'${k}','${esc(o).replace(/'/g,"\\'")}','${kind}')">${esc(o)}</div>`).join(''):'<div class="none">일치 항목 없음 · 직접 입력됩니다</div>';
  const r=el.getBoundingClientRect();list.style.position='fixed';list.style.left=r.left+'px';list.style.top=(r.bottom+4)+'px';list.style.width=r.width+'px';list.style.zIndex='400';list.classList.remove('hidden');}
@@ -806,6 +842,11 @@ function statusBlock(p,mode){
  if(mode==='view')return `<div class="drow"><div class="k">1차 입력</div><div class="v">${p.firstDone?'<span class="badge navy">완료</span>':'<span class="badge gray">미완료</span>'}</div></div><div class="drow"><div class="k">2차 입력</div><div class="v">${p.secondDone?'<span class="badge navy">완료</span>':'<span class="badge gray">미완료</span>'}</div></div>`;
  return `<div class="chk"><label><input type="checkbox" id="f_firstDone" ${p.firstDone?'checked':''}>1차 입력 완료</label><label><input type="checkbox" id="f_secondDone" ${p.secondDone?'checked':''}>2차 입력 완료</label></div>`;
 }
+function memoBlock(p,mode){
+ if(mode==='view')return p.rowMemo?`<div class="memo-view">${esc(p.rowMemo)}</div>`:`<div style="color:#9aa1b0;font-size:13px;padding:2px 2px">메모 없음</div>`;
+ return `<div class="field"><div class="flbl">빠른 메모 <button type="button" class="memo-clear" onclick="clearFormMemo()">전체 삭제</button></div><textarea id="f_rowMemo" class="grow-ta memo-ta" oninput="autoGrow(this)" placeholder="이 입사자에 대한 메모">${esc(p.rowMemo||'')}</textarea></div>`;
+}
+function clearFormMemo(){const el=document.getElementById('f_rowMemo');if(!el)return;el.focus();el.setSelectionRange(0,el.value.length);try{document.execCommand('delete');}catch(_){el.value='';}autoGrow(el);}
 function pickChip(btn,field,val){const grp=document.getElementById('cg_'+field);const cur=document.getElementById('f_'+field);
  if(cur.value===val){cur.value='';btn.classList.remove('on');}else{[...grp.children].forEach(c=>c.classList.remove('on'));btn.classList.add('on');cur.value=val;}}
 function updatePayUnit(){const t=document.getElementById('f_payType');if(!t)return;const u=t.value==='월급제'?'원/月':(t.value==='연봉제'?'원':'');['salary','extraSalary'].forEach(k=>{const s=document.getElementById('unit_'+k);if(s)s.textContent=u;});}
@@ -826,7 +867,7 @@ function saveRecord(editId){const g=k=>{const el=document.getElementById('f_'+k)
    payType:g('payType'),salary:g('salary'),extraSalary:g('extraSalary'),healthDependent:g('healthDependent'),bank:g('bank'),account:g('account'),accountHolder:g('accountHolder'),
    marriage:g('marriage'),children:g('children'),education:g('education'),school:g('school'),career:g('career'),internalMemo:g('internalMemo'),firstDone:g('firstDone'),secondDone:g('secondDone')};
  if(curRecord.styles&&Object.keys(curRecord.styles).length)np.styles=curRecord.styles;
- if(curRecord.rowMemo)np.rowMemo=curRecord.rowMemo;
+ const _rm=document.getElementById('f_rowMemo');const _rv=_rm?_rm.value.trim():(curRecord.rowMemo||'');if(_rv)np.rowMemo=_rv;
  if(curRecord.na&&Object.keys(curRecord.na).length)np.na=curRecord.na;
  if(curRecord.tasks)np.tasks=curRecord.tasks;
  if(curRecord.taskMemos)np.taskMemos=curRecord.taskMemos;
